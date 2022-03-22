@@ -10,7 +10,7 @@ from load_data import *
 
 import wandb
 import random
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from torch.utils.data import Subset
 
 def seed_everything(seed):
@@ -134,13 +134,15 @@ def train():
     eval_steps = 500,            # evaluation step.
     load_best_model_at_end = True,  # Wandb에 best model checkpoint 저장
     report_to = "wandb",         # Wandb에 log
-    run_name = "1_roberta_base_0_KFold",               # Wandb run name   {번호}_{Model}_{이전 Model 번호}_{변경점}
+    run_name = "2_roberta_base_0_validset",               # Wandb run name   {번호}_{Model}_{이전 Model 번호}_{변경점}
     fp16=True,
     fp16_opt_level="O1"
   )
 
-  kfold = StratifiedKFold(n_splits=5)
-  for train_idx, valid_idx in kfold.split(RE_train_dataset, RE_train_dataset.labels):
+  #kfold = StratifiedKFold(n_splits=5)
+  train_val_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
+  for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
+  # for train_idx, valid_idx in kfold.split(RE_train_dataset, RE_train_dataset.labels):
     train_data = Subset(RE_train_dataset, train_idx)
     valid_data = Subset(RE_train_dataset, valid_idx)
 
@@ -156,9 +158,9 @@ def train():
 
   # train model
     trainer.train()
-    model.save_pretrained('./best_model/roBERTa_base_KFold')
+    model.save_pretrained('./best_model/roBERTa_base_validset')
 def main():
-  wandb.init(project="KLUE", entity="miml", name="1_roBERTa-base_0_KFold")
+  wandb.init(project="KLUE", entity="miml", name="1_roBERTa-base_0_validset")
   train()
 
 if __name__ == '__main__':
