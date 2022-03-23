@@ -5,10 +5,36 @@ import torch
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from transformers import AutoTokenizer, AutoConfig, \
+    AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, \
+    RobertaForSequenceClassification, BertTokenizer, BertModel
 from load_data import *
 import wandb
+import random
+from transformers import XLNetTokenizer
+import torch.nn as nn
+import torch.optim as optim
+from tqdm import tqdm
 
+class BERTClassifier(nn.Module):
+    def __init__(self, bert_model, hidden_size = 768, num_classes = 30, dr_rate=None, params=None):
+        super(BERTClassifier, self).__init__()
+        self.model = bert_model
+        self.dr_rate = dr_rate
+        print(self.model)
+
+        self.classifier = nn.Linear(hidden_size, num_classes)
+        if dr_rate:
+            self.dropout = nn.Dropout(p=dr_rate)
+
+    def forward(self, input_ids, attention_mask):
+        out = self.model(input_ids = input_ids, attention_mask = attention_mask)
+        if self.dr_rate:
+            out = self.dropout(out.pooler_output)
+        else:
+            out = out.pooler_output
+        real_out = self.classifier(out)
+        return real_out
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
@@ -70,8 +96,9 @@ def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   MODEL_NAME = "skt/kobert-base-v1"
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-
+  # tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  tokenizer = XLNetTokenizer.from_pretrained('skt/kobert-base-v1',
+                                              sp_model_kwargs={'nbest_size': -1, 'alpha': 0.6, 'enable_sampling': True})
   # load dataset
   train_dataset = load_data("../dataset/train/train.csv")
   # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
@@ -86,7 +113,6 @@ def train():
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
 
-  return
   # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -96,17 +122,43 @@ def train():
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  print(model.config)
+  mode = BertModel.from_pretrained('skt/kobert-base-v1')
+  model = BERTClassifier(mode, dr_rate=0.5).to(device)
+
+  optimizer = optim.AdamW(model.parameters(), lr=5e-5)
+  loss_fn = nn.CrossEntropyLoss().to(device)
   model.parameters
   model.to(device)
+
+  num_epochs = 20
+  train_dataloader = torch.utils.data.DataLoader(RE_train_dataset, batch_size=32, num_workers=5)
+
+  for epoch in range(num_epochs):
+      model.train()
+      for batch_id, val in enumerate(tqdm(train_dataloader)):
+        optimizer.zero_grad()
+        out = model(input_ids = val['input_ids'].clone().detach().to(device),
+                    attention_mask = val['attention_mask'].clone().detach().to(device))
+
+        loss = loss_fn(out, val['labels'].to(device))
+        loss.backward()
+        optimizer.step()
+      test_acc = 0.0
+
+      model.eval()
+      for batch_id, val in enumerate(tqdm(train_dataloader)):
+              out = model(input_ids=val['input_ids'].clone().detach().to(device),
+                          attention_mask=val['attention_mask'].clone().detach().to(device))
+
+              test_acc += calc_accuracy(out, val['labels'].to(device))
+      print("Epoch : {}, Accuracy : {}".format(epoch, test_acc/(batch_id+1)))
   """
   wandb.init(
       project="KLUE",
       entity="miml",
-      name="dongjin_1_KoBERT_0_{AMP}"
+      name="dongjin_2_BERT_{KoBERTTOkenizer}"
   )
-  """
+
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
@@ -142,7 +194,34 @@ def train():
   # train model
   trainer.train()
   model.save_pretrained('./best_model')
+  """
+def calc_accuracy(X,Y):
+    max_vals, max_indices = torch.max(X, 1)
+    train_acc = (max_indices == Y).sum().data.cpu().numpy()/max_indices.size()[0]
+    return train_acc
+
+def seed_setting(random_seed):
+  '''
+  setting random seed for further reproduction
+  :param random_seed:
+  :return:
+  '''
+  os.environ['PYTHONHASHSEED'] = str(random_seed)
+
+  # pytorch, numpy random seed 고정
+  torch.manual_seed(random_seed)
+  np.random.seed(random_seed)
+
+  # CuDNN 고정
+  # torch.backends.cudnn.deterministic = True # 고정하면 학습이 느려진다고 합니다.
+  torch.backends.cudnn.benchmark = False
+  # GPU 난수 생성
+  torch.cuda.manual_seed(random_seed)
+  # transforms에서 사용하는 random 라이브러리 고정
+  random.seed(random_seed)
+
 def main():
+  seed_setting(1004)
   train()
 
 if __name__ == '__main__':
