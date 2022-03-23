@@ -15,73 +15,9 @@ from transformers import XLNetTokenizer
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-
-class BERTClassifier(nn.Module):
-    def __init__(self, bert_model, hidden_size = 768, num_classes = 30, dr_rate=None, params=None):
-        super(BERTClassifier, self).__init__()
-        self.model = bert_model
-        self.dr_rate = dr_rate
-        print(self.model)
-
-        self.classifier = nn.Linear(hidden_size, num_classes)
-        if dr_rate:
-            self.dropout = nn.Dropout(p=dr_rate)
-
-    def forward(self, input_ids, attention_mask):
-        out = self.model(input_ids = input_ids, attention_mask = attention_mask)
-        if self.dr_rate:
-            out = self.dropout(out.pooler_output)
-        else:
-            out = out.pooler_output
-        real_out = self.classifier(out)
-        return real_out
-
-def klue_re_micro_f1(preds, labels):
-    """KLUE-RE micro f1 (except no_relation)"""
-    label_list = ['no_relation', 'org:top_members/employees', 'org:members',
-       'org:product', 'per:title', 'org:alternate_names',
-       'per:employee_of', 'org:place_of_headquarters', 'per:product',
-       'org:number_of_employees/members', 'per:children',
-       'per:place_of_residence', 'per:alternate_names',
-       'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
-       'per:spouse', 'org:founded', 'org:political/religious_affiliation',
-       'org:member_of', 'per:parents', 'org:dissolved',
-       'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
-       'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
-       'per:religion']
-    no_relation_label_idx = label_list.index("no_relation")
-    label_indices = list(range(len(label_list)))
-    label_indices.remove(no_relation_label_idx)
-    return sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
-
-def klue_re_auprc(probs, labels):
-    """KLUE-RE AUPRC (with no_relation)"""
-    labels = np.eye(30)[labels]
-
-    score = np.zeros((30,))
-    for c in range(30):
-        targets_c = labels.take([c], axis=1).ravel()
-        preds_c = probs.take([c], axis=1).ravel()
-        precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
-        score[c] = sklearn.metrics.auc(recall, precision)
-    return np.average(score) * 100.0
-
-def compute_metrics(pred):
-  """ validation을 위한 metrics function """
-  labels = pred.label_ids
-  preds = pred.predictions.argmax(-1)
-  probs = pred.predictions
-
-  # calculate accuracy using sklearn's function
-  f1 = klue_re_micro_f1(preds, labels)
-  auprc = klue_re_auprc(probs, labels)
-  acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
-
-  return {
-      'micro f1 score': f1,
-      'auprc' : auprc,
-      'accuracy': acc,
-  }
+from model import *
+from metric import *
+from sklearn.model_selection import train_test_split
 
 def label_to_num(label):
   num_label = []
@@ -93,46 +29,48 @@ def label_to_num(label):
   return num_label
 
 def train():
-  # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
+  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+  assert str(device)=='cuda:0'
+
   MODEL_NAME = "skt/kobert-base-v1"
   # tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
   tokenizer = XLNetTokenizer.from_pretrained('skt/kobert-base-v1',
                                               sp_model_kwargs={'nbest_size': -1, 'alpha': 0.6, 'enable_sampling': True})
-  # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
-  # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
+  mode = BertModel.from_pretrained(MODEL_NAME)
+  model = BERTClassifier(mode, dr_rate=0.5).to(device)
+  model.to(device)
 
-  train_label = label_to_num(train_dataset['label'].values)
-  # dev_label = label_to_num(dev_dataset['label'].values)
+  # load dataset
+
+  train_dataset = load_data("../dataset/train/train.csv")
+
+  train_data, valid_data = train_test_split(train_dataset, test_size=0.1,shuffle=True, stratify=train_dataset['label'])
+
+  train_label = label_to_num(train_data['label'].values)
+  valid_label = label_to_num(valid_data['label'].values)
 
   # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+  tokenized_train = tokenized_dataset(train_data, tokenizer)
+  tokenized_dev = tokenized_dataset(valid_data, tokenizer)
 
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
+  RE_dev_dataset = RE_Dataset(tokenized_dev, valid_label)
 
-  # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+  # 설정. 일단 지금은 활용 안하니 주석처리
+  # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  # model_config.num_labels = 30
 
-  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-  print(device)
-  # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = 30
-
-  mode = BertModel.from_pretrained('skt/kobert-base-v1')
-  model = BERTClassifier(mode, dr_rate=0.5).to(device)
-
+  # Optimizer, Loss Function 구하기
   optimizer = optim.AdamW(model.parameters(), lr=5e-5)
   loss_fn = nn.CrossEntropyLoss().to(device)
-  model.parameters
-  model.to(device)
 
   num_epochs = 20
   train_dataloader = torch.utils.data.DataLoader(RE_train_dataset, batch_size=32, num_workers=5)
+  valid_dataloader = torch.utils.data.DataLoader(RE_dev_dataset, batch_size=64, num_workers=5)
 
+  best_acc = 0.0
+  num = 0
   for epoch in range(num_epochs):
       model.train()
       for batch_id, val in enumerate(tqdm(train_dataloader)):
@@ -146,12 +84,25 @@ def train():
       test_acc = 0.0
 
       model.eval()
-      for batch_id, val in enumerate(tqdm(train_dataloader)):
-              out = model(input_ids=val['input_ids'].clone().detach().to(device),
-                          attention_mask=val['attention_mask'].clone().detach().to(device))
+      with torch.no_grad():
+          for batch_id, val in enumerate(tqdm(valid_dataloader)):
+                  out = model(input_ids=val['input_ids'].clone().detach().to(device),
+                              attention_mask=val['attention_mask'].clone().detach().to(device))
 
-              test_acc += calc_accuracy(out, val['labels'].to(device))
-      print("Epoch : {}, Accuracy : {}".format(epoch, test_acc/(batch_id+1)))
+                  test_acc += calc_accuracy(out, val['labels'].to(device))
+          print("Epoch : {}, Accuracy : {}".format(epoch, test_acc/(batch_id+1)))
+
+      if best_acc < test_acc : # Model Save
+        torch.save(model.state_dict(), f'./best_model/best.pth')
+        best_acc = test_acc
+        num = 0
+      else:
+          num = num + 1
+    
+      if num > 5:
+          print("Early Stopping!")
+          break
+
   """
   wandb.init(
       project="KLUE",
@@ -195,29 +146,16 @@ def train():
   trainer.train()
   model.save_pretrained('./best_model')
   """
-def calc_accuracy(X,Y):
-    max_vals, max_indices = torch.max(X, 1)
-    train_acc = (max_indices == Y).sum().data.cpu().numpy()/max_indices.size()[0]
-    return train_acc
 
 def seed_setting(random_seed):
-  '''
-  setting random seed for further reproduction
-  :param random_seed:
-  :return:
-  '''
   os.environ['PYTHONHASHSEED'] = str(random_seed)
 
   # pytorch, numpy random seed 고정
   torch.manual_seed(random_seed)
   np.random.seed(random_seed)
 
-  # CuDNN 고정
-  # torch.backends.cudnn.deterministic = True # 고정하면 학습이 느려진다고 합니다.
   torch.backends.cudnn.benchmark = False
-  # GPU 난수 생성
   torch.cuda.manual_seed(random_seed)
-  # transforms에서 사용하는 random 라이브러리 고정
   random.seed(random_seed)
 
 def main():
