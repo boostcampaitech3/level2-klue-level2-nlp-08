@@ -22,12 +22,19 @@ def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
   object_entity = []
-  for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
+  sentence = []
+  for i,j,k in zip(dataset['subject_entity'], dataset['object_entity'], dataset['sentence']):
+    tokens = [eval(i)['start_idx'], eval(i)['end_idx'], eval(i)['type'], eval(j)['start_idx'], eval(j)['end_idx'], eval(j)['type']]
     i = i[1:-1].split(',')[0].split(':')[1]
     j = j[1:-1].split(',')[0].split(':')[1]
-
+    k = k[:tokens[0]]\
+    + f'[{tokens[2]}]' + k[tokens[0]:tokens[1]+1] + f'[/{tokens[2]}]'\
+    + k[tokens[1]+1:tokens[3]]\
+    + f'[{tokens[5]}]' + k[tokens[3]:tokens[4]+1] + f'[/{tokens[5]}]'\
+    + k[tokens[4]+1:]
     subject_entity.append(i)
     object_entity.append(j)
+    sentence.append(k)
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
 
