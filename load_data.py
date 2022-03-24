@@ -52,6 +52,10 @@ def tokenized_dataset(dataset, tokenizer):
     temp = ''
     temp = e01 + '[SEP]' + e02
     concat_entity.append(temp)
+    # tokenizer에 special token 추가
+    user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
+    special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
+    tokenizer.add_special_tokens(special_tokens_dict)
   tokenized_sentences = tokenizer(
       concat_entity,
       list(dataset['sentence']),
