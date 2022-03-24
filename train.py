@@ -1,13 +1,29 @@
 import pickle as pickle
 import os
+import wandb
 import pandas as pd
 import torch
 import sklearn
 import numpy as np
+import random
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
+from torch.utils.data import Subset
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from load_data import *
+from tokenizers import SentencePieceBPETokenizer,BertWordPieceTokenizer,SentencePieceUnigramTokenizer
+# from eunjeon import Mecab
+# from konlpy.tag import Kkma
+# import sentencepiece as spm
 
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
@@ -65,11 +81,16 @@ def label_to_num(label):
   
   return num_label
 
+run_name = 'bolim_sptok-mecab_robLag_base'
 def train():
+  seed_everything(1004)
   # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  MODEL_NAME = "klue/bert-base"
+  # MODEL_NAME = "bert-base-multilingual-uncased"
+  MODEL_NAME = "klue/roberta-large"#"klue/bert-base"
+  # BertWordPieceTokenizer
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  # tokenizer = SentencePieceBPETokenizer()
+  num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[NER]', '[/NER]']})
 
   # load dataset
   train_dataset = load_data("../dataset/train/train.csv")
@@ -94,6 +115,7 @@ def train():
   model_config.num_labels = 30
 
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  model.resize_token_embeddings(tokenizer.vocab_size + num_added_sptoks)
   print(model.config)
   model.parameters
   model.to(device)
@@ -104,10 +126,10 @@ def train():
     output_dir='./results',          # output directory
     save_total_limit=5,              # number of total save model.
     save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
+    num_train_epochs=15,              # total number of training epochs
     learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=16,  # batch size per device during training
-    per_device_eval_batch_size=16,   # batch size for evaluation
+    per_device_train_batch_size=32,  # batch size per device during training
+    per_device_eval_batch_size=32,   # batch size for evaluation
     warmup_steps=500,                # number of warmup steps for learning rate scheduler
     weight_decay=0.01,               # strength of weight decay
     logging_dir='./logs',            # directory for storing logs
@@ -117,21 +139,45 @@ def train():
                                 # `steps`: Evaluate every `eval_steps`.
                                 # `epoch`: Evaluate every end of epoch.
     eval_steps = 500,            # evaluation step.
-    load_best_model_at_end = True 
+    load_best_model_at_end = True,
+    report_to="wandb",
+    run_name=run_name,
+    fp16=True,
+    fp16_opt_level="O1"
   )
   trainer = Trainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
-    args=training_args,                  # training arguments, defined above
-    train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_train_dataset,             # evaluation dataset
-    compute_metrics=compute_metrics         # define metrics function
+      model=model,  # the instantiated 🤗 Transformers model to be trained
+      args=training_args,  # training arguments, defined above
+      train_dataset=RE_train_dataset,         # training dataset
+      eval_dataset=RE_train_dataset,             # evaluation dataset
+      compute_metrics=compute_metrics  # define metrics function
   )
-
-  # train model
   trainer.train()
-  model.save_pretrained('./best_model')
+  model.save_pretrained('./best_model/' + run_name)
+  # train_val_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
+  # idx = 0
+  # for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
+  #     # for train_idx, valid_idx in kfold.split(RE_train_dataset, RE_train_dataset.labels):
+  #     idx += 1
+  #     train_data = Subset(RE_train_dataset, train_idx)
+  #     valid_data = Subset(RE_train_dataset, valid_idx)
+  #
+  #     trainer = Trainer(
+  #         model=model,  # the instantiated 🤗 Transformers model to be trained
+  #         args=training_args,  # training arguments, defined above
+  #         # train_dataset=RE_train_dataset,         # training dataset
+  #         train_dataset=train_data,
+  #         # eval_dataset=RE_train_dataset,             # evaluation dataset
+  #         eval_dataset=valid_data,
+  #         compute_metrics=compute_metrics  # define metrics function
+  #     )
+  #     # train model
+  #     trainer.train()
+  #     model.save_pretrained('./best_model/' + run_name + '_'+idx)
+
 def main():
-  train()
+    wandb.init(project="KLUE", entity="miml", name=run_name)
+    train()
 
 if __name__ == '__main__':
   main()

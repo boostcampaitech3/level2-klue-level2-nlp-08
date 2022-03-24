@@ -2,8 +2,47 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
-
-
+import re
+import urllib3
+import json
+from konlpy.tag import Mecab
+import ast
+# with open('key.json', 'r') as f:
+#     key = json.load(f)['key']
+# def get_Etri_API(text):
+#     openApiURL = "http://aiopen.etri.re.kr:8000/WiseNLU"
+#     accessKey = key
+#     analysisCode = "ner"  # morp
+#
+#     requestJson = {
+#         "access_key": accessKey,
+#         "argument": {
+#             "text": text,
+#             "analysis_code": analysisCode
+#         }
+#     }
+#
+#     http = urllib3.PoolManager()
+#     response = http.request(
+#         "POST",
+#         openApiURL,
+#         headers={"Content-Type": "application/json; charset=UTF-8"},
+#         body=json.dumps(requestJson)
+#     )
+#
+#     if response.status == 200:
+#         data = ast.literal_eval(response.data.decode('utf-8'))
+#         NES = data['return_object']['sentence'][0]['NE']
+#         for n in NES:
+#             if n['text'] in text:
+#                 text = text.replace(n['text'],'[NER]'+n['text']+'[/NER]')
+#     else:
+#         print(response.status)
+mecab = Mecab()
+def add_spTok(text):
+    for noun in mecab.nouns(text):
+        text = text.replace(noun,'[NER]'+noun+'[/NER]')
+    return text
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
   def __init__(self, pair_dataset, labels):
@@ -47,7 +86,7 @@ def tokenized_dataset(dataset, tokenizer):
     concat_entity.append(temp)
   tokenized_sentences = tokenizer(
       concat_entity,
-      list(dataset['sentence']),
+      list(text for text in dataset['sentence']),#add_spTok(text)
       return_tensors="pt",
       padding=True,
       truncation=True,
