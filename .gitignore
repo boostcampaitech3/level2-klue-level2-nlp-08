@@ -3,3 +3,5 @@ wandb/
 results/
 prediction/
 best_model/
+.DS_Store
+._*
