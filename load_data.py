@@ -51,6 +51,7 @@ def tokenized_dataset(dataset, tokenizer):
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     temp = ''
     temp = e01 + '[SEP]' + e02
+    # temp = f'이 문장에서 {}과 {}은 어떤 관계일까?'  # multi 방식 사용
     concat_entity.append(temp)
     # tokenizer에 special token 추가
     user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
@@ -59,6 +60,7 @@ def tokenized_dataset(dataset, tokenizer):
   tokenized_sentences = tokenizer(
       concat_entity,
       list(dataset['sentence']),
+      # concat_entity  # multi 방식 사용
       return_tensors="pt",
       padding=True,
       truncation=True,
