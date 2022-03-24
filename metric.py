@@ -36,10 +36,11 @@ def klue_re_micro_f1(preds, labels):
 
 def klue_re_auprc(probs, labels):
     """KLUE-RE AUPRC (with no_relation)"""
-    labels = np.eye(30)[labels]
+    num_class = len(np.unique(labels))
+    labels = np.eye(num_class)[labels]
 
-    score = np.zeros((30,))
-    for c in range(30):
+    score = np.zeros((num_class,))
+    for c in range(num_class):
         targets_c = labels.take([c], axis=1).ravel()
         preds_c = probs.take([c], axis=1).ravel()
         precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
@@ -48,14 +49,15 @@ def klue_re_auprc(probs, labels):
 
 def compute_metrics(pred):
   """ validation을 위한 metrics function """
-  labels = pred.label_ids
+
+  labels = pred.label_ids[:3145]
   preds = pred.predictions.argmax(-1)
   probs = pred.predictions
 
   # calculate accuracy using sklearn's function
   f1 = klue_re_micro_f1(preds, labels)
   auprc = klue_re_auprc(probs, labels)
-  acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
+  acc = accuracy_score(labels, preds)
 
   return {
       'micro f1 score': f1,
@@ -63,7 +65,27 @@ def compute_metrics(pred):
       'accuracy': acc,
   }
 
+
 def calc_accuracy(X,Y):
     max_vals, max_indices = torch.max(X, 1)
     train_acc = (max_indices == Y).sum().data.cpu().numpy()/max_indices.size()[0]
     return train_acc
+
+
+class MyTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # config에 저장된 loss_name에 따라 다른 loss 계산
+        custom_loss = torch.nn.CrossEntropyLoss()
+        input = inputs.pop('input_ids')
+
+        labels = inputs.pop('labels')
+        attention = inputs.pop('attention_mask')
+
+        outputs = model(input_ids =input, attention_mask = attention)
+
+        loss = custom_loss(outputs,labels)
+
+        return (loss, outputs) if return_outputs else loss
