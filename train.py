@@ -12,6 +12,7 @@ import wandb
 import random
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from torch.utils.data import Subset
+from custom_trainer import CustomTrainer
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -83,11 +84,11 @@ def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   # MODEL_NAME = "klue/bert-base"
-  MODEL_NAME = "klue/roberta-base"
+  MODEL_NAME = "klue/roberta-large"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME) 
 
   # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
+  train_dataset = load_data("../../dataset/train/train.csv")
   # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
 
   train_label = label_to_num(train_dataset['label'].values)
@@ -116,28 +117,33 @@ def train():
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-    output_dir='./results',          # output directory
-    save_total_limit=5,              # number of total save model.
+    output_dir='./results/roberta_large_batch32_focal_entity_valid',          # output directory
+    save_total_limit=20,              # number of total save model.
     save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
+    num_train_epochs=10,              # total number of training epochs
     learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=64,  # batch size per device during training
-    per_device_eval_batch_size=64,   # batch size for evaluation
-    warmup_steps=500,                # number of warmup steps for learning rate scheduler
+    per_device_train_batch_size=32,  # batch size per device during training
+    per_device_eval_batch_size=32,   # batch size for evaluation
+    warmup_steps=500,                # number of warmup steps for learning rate scheduler[]
     weight_decay=0.01,               # strength of weight decay
     logging_dir='./logs',            # directory for storing logs
     logging_steps=100,              # log saving step.
-    evaluation_strategy='steps', # evaluation strategy to adopt during training
-                                # `no`: No evaluation during training.
+    evaluation_strategy='epoch', # evaluation strategy to adopt during training
+                                # `no`: No evaluation during training.[]
                                 # `steps`: Evaluate every `eval_steps`.
                                 # `epoch`: Evaluate every end of epoch.
+    save_strategy="epoch",
     eval_steps = 500,            # evaluation step.
     load_best_model_at_end = True,  # Wandb에 best model checkpoint 저장
     report_to = "wandb",         # Wandb에 log
-    run_name = "2_roberta_base_0_validset",               # Wandb run name   {번호}_{Model}_{이전 Model 번호}_{변경점}
+    run_name = "0_roberta_large_0_batch32_focal",               # Wandb run name   {번호}_{Model}_{이전 Model 번호}_{변경점}
     fp16=True,
     fp16_opt_level="O1"
   )
+
+  print(model.get_input_embeddings())
+  model.resize_token_embeddings(tokenizer.vocab_size + 4)
+  print(model.get_input_embeddings())
 
   #kfold = StratifiedKFold(n_splits=5)
   train_val_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
@@ -146,22 +152,31 @@ def train():
     train_data = Subset(RE_train_dataset, train_idx)
     valid_data = Subset(RE_train_dataset, valid_idx)
 
-    trainer = Trainer(
+    trainer = CustomTrainer(
+      loss_name='focal',
       model=model,                         # the instantiated 🤗 Transformers model to be trained
       args=training_args,                  # training arguments, defined above
-      #train_dataset=RE_train_dataset,         # training dataset
-      train_dataset=train_data,
-      #eval_dataset=RE_train_dataset,             # evaluation dataset
-      eval_dataset=valid_data,
-      compute_metrics=compute_metrics         # define metrics function
+      train_dataset=train_data,            # training dataset
+      eval_dataset=valid_data,             # evaluation dataset
+      compute_metrics=compute_metrics      # define metrics function
     )
+    trainer.train()
+  
+  # trainer = CustomTrainer(
+  #     loss_name='focal',
+  #     model=model,                         # the instantiated 🤗 Transformers model to be trained
+  #     args=training_args,                  # training arguments, defined above
+  #     train_dataset=RE_train_dataset,            # training dataset
+  #     eval_dataset=RE_train_dataset,             # evaluation dataset
+  #     compute_metrics=compute_metrics      # define metrics function
+  # )
+  # trainer.train()
 
   # train model
-    trainer.train()
-    model.save_pretrained('./best_model/roBERTa_base_validset')
+  model.save_pretrained('./best_model/roBERTa_large_batch32_10ep_focal_entity_valid')
 def main():
-  wandb.init(project="KLUE", entity="miml", name="1_roBERTa-base_0_validset")
+  wandb.init(project="KLUE", entity="miml", name="chi0 roBERTa_large_batch32_10ep_focal_entity_valid")
   train()
 
 if __name__ == '__main__':
-  main()
+  main()  
