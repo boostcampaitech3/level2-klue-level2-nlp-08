@@ -24,17 +24,21 @@ def preprocessing_dataset(dataset):
   object_entity = []
   sentence = []
   for i,j,k in zip(dataset['subject_entity'], dataset['object_entity'], dataset['sentence']):
-    tokens = [eval(i)['start_idx'], eval(i)['end_idx'], eval(i)['type'], eval(j)['start_idx'], eval(j)['end_idx'], eval(j)['type']]
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
-    k = k[:tokens[0]]\
-    + f'[{tokens[2]}]' + k[tokens[0]:tokens[1]+1] + f'[/{tokens[2]}]'\
-    + k[tokens[1]+1:tokens[3]]\
-    + f'[{tokens[5]}]' + k[tokens[3]:tokens[4]+1] + f'[/{tokens[5]}]'\
-    + k[tokens[4]+1:]
-    subject_entity.append(i)
-    object_entity.append(j)
-    sentence.append(k)
+    i_word = i[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
+    j_word = j[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
+
+    i_start = int(i.split('\':')[2].split(',')[0])
+    i_end = int(i.split('\':')[3].split(',')[0])
+    j_start = int(j.split('\':')[2].split(',')[0])
+    j_end = int(j.split('\':')[3].split(',')[0])
+    i_type = i[1:-1].split('\':')[4].replace("'", '').strip()
+    j_type = j[1:-1].split('\':')[4].replace("'", '').strip()
+
+    sent = add_punct(k, i_start, i_end, i_type, j_start, j_end, j_type)
+
+    subject_entity.append(i_word)
+    object_entity.append(j_word)
+    sentence.append(sent)
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':sentence,'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
 
@@ -59,7 +63,8 @@ def tokenized_dataset(dataset, tokenizer):
     tokenizer.add_special_tokens(special_tokens_dict)
   tokenized_sentences = tokenizer(
       concat_entity,
-      list(dataset['sentence']),
+      # list(dataset['sentence']),
+      list(text for text in dataset['sentence']),
       # concat_entity  # multi 방식 사용
       return_tensors="pt",
       padding=True,
