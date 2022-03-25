@@ -7,42 +7,9 @@ import urllib3
 import json
 from konlpy.tag import Mecab
 import ast
-# with open('key.json', 'r') as f:
-#     key = json.load(f)['key']
-# def get_Etri_API(text):
-#     openApiURL = "http://aiopen.etri.re.kr:8000/WiseNLU"
-#     accessKey = key
-#     analysisCode = "ner"  # morp
-#
-#     requestJson = {
-#         "access_key": accessKey,
-#         "argument": {
-#             "text": text,
-#             "analysis_code": analysisCode
-#         }
-#     }
-#
-#     http = urllib3.PoolManager()
-#     response = http.request(
-#         "POST",
-#         openApiURL,
-#         headers={"Content-Type": "application/json; charset=UTF-8"},
-#         body=json.dumps(requestJson)
-#     )
-#
-#     if response.status == 200:
-#         data = ast.literal_eval(response.data.decode('utf-8'))
-#         NES = data['return_object']['sentence'][0]['NE']
-#         for n in NES:
-#             if n['text'] in text:
-#                 text = text.replace(n['text'],'[NER]'+n['text']+'[/NER]')
-#     else:
-#         print(response.status)
-mecab = Mecab()
-def add_spTok(text):
-    for noun in mecab.nouns(text):
-        text = text.replace(noun,'[NER]'+noun+'[/NER]')
-    return text
+from utils import *
+
+
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
   def __init__(self, pair_dataset, labels):
@@ -61,13 +28,26 @@ def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
   object_entity = []
-  for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
+  sentence = []
+  for i, j, sent, ids in zip(dataset['subject_entity'], dataset['object_entity'], dataset['sentence'], dataset['id']):
+      i_word = i[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
+      j_word = j[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
 
-    subject_entity.append(i)
-    object_entity.append(j)
-  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
+      i_start = int(i.split('\':')[2].split(',')[0])
+      i_end = int(i.split('\':')[3].split(',')[0])
+      j_start = int(j.split('\':')[2].split(',')[0])
+      j_end = int(j.split('\':')[3].split(',')[0])
+      i_type = i[1:-1].split('\':')[4].replace("'", '').strip()
+      j_type = j[1:-1].split('\':')[4].replace("'", '').strip()
+
+      new_sent = add_punct(sent, i_start, i_end, i_type, j_start, j_end, j_type)
+
+      subject_entity.append(i_word)
+      object_entity.append(j_word)
+      sentence.append(new_sent)
+  out_dataset = pd.DataFrame(
+      {'id': dataset['id'], 'sentence': sentence, 'subject_entity': subject_entity, 'object_entity': object_entity,
+       'label': dataset['label'], })
   return out_dataset
 
 def load_data(dataset_dir):
@@ -81,12 +61,12 @@ def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    temp = ''
-    temp = e01 + '[SEP]' + e02
+    temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
     concat_entity.append(temp)
   tokenized_sentences = tokenizer(
-      concat_entity,
+      # concat_entity,
       list(text for text in dataset['sentence']),#add_spTok(text)
+      concat_entity,
       return_tensors="pt",
       padding=True,
       truncation=True,

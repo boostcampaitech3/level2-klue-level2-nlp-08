@@ -5,7 +5,6 @@ import pandas as pd
 import torch
 import sklearn
 import numpy as np
-import random
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from torch.utils.data import Subset
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
@@ -15,15 +14,8 @@ from tokenizers import SentencePieceBPETokenizer,BertWordPieceTokenizer,Sentence
 # from eunjeon import Mecab
 # from konlpy.tag import Kkma
 # import sentencepiece as spm
+from utils import *
 
-def seed_everything(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
@@ -81,7 +73,7 @@ def label_to_num(label):
   
   return num_label
 
-run_name = 'bolim_sptok-mecab_robLag_base'
+run_name = 'bolim_permuTok_robLag_20ep_1e4'
 def train():
   seed_everything(1004)
   # load model and tokenizer
@@ -125,9 +117,9 @@ def train():
   training_args = TrainingArguments(
     output_dir='./results',          # output directory
     save_total_limit=5,              # number of total save model.
-    save_steps=500,                 # model saving step.
-    num_train_epochs=15,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
+    save_steps=1000,                 # model saving step.
+    num_train_epochs=20,              # total number of training epochs
+    learning_rate=1e-4,               # learning_rate
     per_device_train_batch_size=32,  # batch size per device during training
     per_device_eval_batch_size=32,   # batch size for evaluation
     warmup_steps=500,                # number of warmup steps for learning rate scheduler
