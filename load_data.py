@@ -37,18 +37,14 @@ def preprocessing_dataset(dataset):
     i_end = int(i.split('\':')[3].split(',')[0])
     j_start = int(j.split('\':')[2].split(',')[0])
     j_end = int(j.split('\':')[3].split(',')[0])
-
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
     
-    #sent = sent[:i_start] + '[SUBJ]' + sent[i_start:i_end+1] + '[/SUBJ]' + sent[i_end+1:j_start] + '[OBJ]' + sent[j_start:j_end+1] + '[/OBJ]' + sent[j_end+1:]
     if i_start < j_start:
       result = sent[:i_start] + '[SUBJ]' + sent[i_start:i_end+1] + '[/SUBJ]' + sent[i_end+1:j_start] + '[OBJ]' + sent[j_start:j_end+1] + '[/OBJ]' + sent[j_end+1:]
     else:
       result = sent[:j_start] + '[OBJ]' + sent[j_start:j_end+1] + '[/OBJ]' + sent[j_end+1:i_start] + '[SUBJ]' + sent[i_start:i_end+1] + '[/SUBJ]' + sent[i_end+1:]
     
-    subject_entity.append(i)
-    object_entity.append(j)
+    subject_entity.append(sent[i_start:i_end+1])
+    object_entity.append(sent[j_start:j_end+1])
     sentence.append(result)
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':sentence,'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
@@ -71,7 +67,7 @@ def tokenized_dataset(dataset, tokenizer):
   add_special = tokenizer.add_special_tokens({'additional_special_tokens':['[SUBJ]', '[/SUBJ]', '[OBJ]', '[/OBJ]']})
   # tokenizer.__call__
   tokenized_sentences = tokenizer(
-      # concat_entity,
+      #concat_entity,
       list(dataset['sentence']),
       return_tensors="pt",
       padding=True,
