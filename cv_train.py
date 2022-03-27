@@ -73,7 +73,7 @@ def label_to_num(label):
   
   return num_label
 
-run_name = 'bolim_permuTok_robLag_20ep_5e5_2'
+run_name = 'bolim_permuTok_noentity_robLag_20ep_5e5'
 def train():
   seed_everything(1004)
   # load model and tokenizer
@@ -102,55 +102,47 @@ def train():
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   print(device)
-  # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = 30
-
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  # model.resize_token_embeddings(tokenizer.vocab_size + num_added_sptoks)
-  print(model.config)
-  model.parameters
-  model.to(device)
-  
-  # 사용한 option 외에도 다양한 option들이 있습니다.
-  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
-  training_args = TrainingArguments(
-    output_dir='./results',          # output directory
-    save_total_limit=5,              # number of total save model.
-    save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=32,   # batch size per device during training
-    per_device_eval_batch_size=32,   # batch size for evaluation
-    warmup_steps=500,                # number of warmup steps for learning rate scheduler
-    weight_decay=0.01,               # strength of weight decay
-    logging_dir='./logs',            # directory for storing logs
-    logging_steps=100,              # log saving step.
-    evaluation_strategy='steps', # evaluation strategy to adopt during training
-                                # `no`: No evaluation during training.
-                                # `steps`: Evaluate every `eval_steps`.
-                                # `epoch`: Evaluate every end of epoch.
-    eval_steps = 500,            # evaluation step.
-    load_best_model_at_end = True,
-    report_to="wandb",
-    run_name=run_name,
-    fp16=True,
-    fp16_opt_level="O1"
-  )
-  # trainer = Trainer(
-  #     model=model,  # the instantiated 🤗 Transformers model to be trained
-  #     args=training_args,  # training arguments, defined above
-  #     train_dataset=RE_train_dataset,         # training dataset
-  #     eval_dataset=RE_train_dataset,             # evaluation dataset
-  #     compute_metrics=compute_metrics  # define metrics function
-  # )
-  # trainer.train()
-  # model.save_pretrained('./best_model/' + run_name)
-  train_val_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
+  train_val_split = StratifiedShuffleSplit(n_splits=3, test_size=0.1, random_state=1004)
   idx = 0
   for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
-      # for train_idx, valid_idx in kfold.split(RE_train_dataset, RE_train_dataset.labels):
       idx += 1
+      # setting model hyperparameter
+      model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+      model_config.num_labels = 30
+
+      model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+      # model.resize_token_embeddings(tokenizer.vocab_size + num_added_sptoks)
+      print(model.config)
+      model.parameters
+      model.to(device)
+
+      # 사용한 option 외에도 다양한 option들이 있습니다.
+      # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
+      training_args = TrainingArguments(
+        output_dir='./results',          # output directory
+        save_total_limit=3,              # number of total save model.
+        save_steps=500,                 # model saving step.
+        num_train_epochs=20,              # total number of training epochs
+        learning_rate=5e-5,               # learning_rate
+        per_device_train_batch_size=32,   # batch size per device during training
+        per_device_eval_batch_size=32,   # batch size for evaluation
+        warmup_steps=1000,                # number of warmup steps for learning rate scheduler
+        weight_decay=0.01,               # strength of weight decay
+        logging_dir='./logs',            # directory for storing logs
+        logging_steps=100,              # log saving step.
+        evaluation_strategy='steps', # evaluation strategy to adopt during training
+                                    # `no`: No evaluation during training.
+                                    # `steps`: Evaluate every `eval_steps`.
+                                    # `epoch`: Evaluate every end of epoch.
+        eval_steps = 500,            # evaluation step.
+        # load_best_model_at_end = True,
+        report_to="wandb",
+        run_name=run_name,
+        fp16=True,
+        fp16_opt_level="O1"
+      )
+
+
       train_data = Subset(RE_train_dataset, train_idx)
       valid_data = Subset(RE_train_dataset, valid_idx)
 
@@ -165,23 +157,25 @@ def train():
       )
       # train model
       trainer.train()
+      model.save_pretrained('./best_model/' + run_name+'_'+str(idx))
 
-      # val set train
-      trainer = Trainer(
-          model=model,  # the instantiated 🤗 Transformers model to be trained
-          args=training_args,  # training arguments, defined above
-          # train_dataset=RE_train_dataset,         # training dataset
-          train_dataset=valid_data,
-          # eval_dataset=RE_train_dataset,             # evaluation dataset
-          compute_metrics=compute_metrics  # define metrics function
-      )
-      # train model
-      trainer.train()
+      # # val set train
+      # trainer = Trainer(
+      #     model=model,  # the instantiated 🤗 Transformers model to be trained
+      #     args=training_args,  # training arguments, defined above
+      #     # train_dataset=RE_train_dataset,         # training dataset
+      #     train_dataset=valid_data,
+      #     # eval_dataset=RE_train_dataset,             # evaluation dataset
+      #     compute_metrics=compute_metrics  # define metrics function
+      # )
+      # # train model
+      # trainer.train()
 
 
-  model.save_pretrained('./best_model/' + run_name)
+
 
 def main():
+    torch.cuda.empty_cache()
     wandb.init(project="KLUE", entity="miml", name=run_name)
     train()
 
