@@ -110,6 +110,7 @@ def train():
   model_config.num_labels = 30
 
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  model.resize_token_embeddings(tokenizer.vocab_size + 12) # special tokens 추가에 따른 model resize
   print(model.config)
   model.parameters
   model.to(device)
