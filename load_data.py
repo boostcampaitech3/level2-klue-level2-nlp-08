@@ -1,7 +1,10 @@
+from email.policy import default
 import pickle as pickle
 import os
 import pandas as pd
 import torch
+from add_entity_token import *
+
 from utils import *
 
 class RE_Dataset(torch.utils.data.Dataset):
@@ -20,6 +23,11 @@ class RE_Dataset(torch.utils.data.Dataset):
 
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
+  out_dataset = default_entity(dataset)
+  out_dataset = add_entity_token(dataset)
+  out_dataset = add_entity_typed_token(dataset)
+  out_dataset = swap_entity_typed_token(dataset)
+  
   subject_entity = []
   object_entity = []
   sentence = []
@@ -51,6 +59,22 @@ def load_data(dataset_dir):
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
+  # concat_entity = []
+  # for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
+  #   temp = ''
+  #   temp = e01 + '[SEP]' + e02
+  #   concat_entity.append(temp)
+
+  added_special = tokenizer.add_special_tokens({'additional_special_tokens':['[SUBJ:PER]',  
+                                                                             '[SUBJ:ORG]',  
+                                                                             '[OBJ:PER]', 
+                                                                             '[OBJ:ORG]', 
+                                                                             '[OBJ:LOC]', 
+                                                                             '[OBJ:POH]', 
+                                                                             '[OBJ:NOH]', 
+                                                                             '[OBJ:DAT]', 
+                                                                             '[SUBJ]', '[/SUBJ]', '[OBJ]', '[/OBJ]']})
+  # tokenizer.__call__
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     temp = ''
@@ -71,4 +95,4 @@ def tokenized_dataset(dataset, tokenizer):
       max_length=256,
       add_special_tokens=True,
       )
-  return tokenized_sentences
+  return tokenized_sentences, added_special
