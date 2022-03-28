@@ -1,20 +1,29 @@
-import pickle as pickle
-import os
-import pandas as pd
 import torch
 import sklearn
 import numpy as np
+import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, \
-    AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, \
-    RobertaForSequenceClassification, BertTokenizer, BertModel
-from load_data import *
-import wandb
-import random
-from transformers import XLNetTokenizer
 import torch.nn as nn
-import torch.optim as optim
-from tqdm import tqdm
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, weight=None,
+                 gamma=2., classes=30, reduction='mean'):
+        nn.Module.__init__(self)
+        self.weight = weight
+        self.gamma = gamma
+        self.reduction = reduction
+        self.classes = classes
+
+    def forward(self, input_tensor, target_tensor):
+        log_prob = F.log_softmax(input_tensor, dim=-1)
+        prob = torch.exp(log_prob)
+        return F.nll_loss(
+            ((1 - prob) ** self.gamma) * log_prob,
+            target_tensor,
+            weight=self.weight,
+            reduction=self.reduction
+        )
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
@@ -50,7 +59,7 @@ def klue_re_auprc(probs, labels):
 def compute_metrics(pred):
   """ validation을 위한 metrics function """
 
-  labels = pred.label_ids[:3145]
+  labels = pred.label_ids
   preds = pred.predictions.argmax(-1)
   probs = pred.predictions
 
@@ -70,22 +79,3 @@ def calc_accuracy(X,Y):
     max_vals, max_indices = torch.max(X, 1)
     train_acc = (max_indices == Y).sum().data.cpu().numpy()/max_indices.size()[0]
     return train_acc
-
-
-class MyTrainer(Trainer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # config에 저장된 loss_name에 따라 다른 loss 계산
-        custom_loss = torch.nn.CrossEntropyLoss()
-        input = inputs.pop('input_ids')
-
-        labels = inputs.pop('labels')
-        attention = inputs.pop('attention_mask')
-
-        outputs = model(input_ids =input, attention_mask = attention)
-
-        loss = custom_loss(outputs,labels)
-
-        return (loss, outputs) if return_outputs else loss
