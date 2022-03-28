@@ -54,18 +54,17 @@ def tokenized_dataset(dataset, tokenizer):
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     temp = ''
-    temp = e01 + '[SEP]' + e02
-    # temp = f'이 문장에서 {}과 {}은 어떤 관계일까?'  # multi 방식 사용
+    # temp = e01 + '[SEP]' + e02
+    temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
     concat_entity.append(temp)
     # tokenizer에 special token 추가 : entity marker 사용 시 활성화. typed entity marker 활용 시 비활성화
-    user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
-    special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
-    tokenizer.add_special_tokens(special_tokens_dict)
+    # user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
+    # special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
+    # tokenizer.add_special_tokens(special_tokens_dict)
   tokenized_sentences = tokenizer(
-      concat_entity,
-      # list(dataset['sentence']),
-      list(text for text in dataset['sentence']),
       # concat_entity,
+      list(dataset['sentence']),
+      concat_entity,
       return_tensors="pt",
       padding=True,
       truncation=True,
