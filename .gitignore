@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 key.json
 wandb/
 results/
@@ -5,3 +6,14 @@ prediction/
 best_model/
 .DS_Store
 ._*
+=======
+*.pth
+__pycache__
+*.pt
+*.bin
+*.json
+*.log
+wandb/*
+*.csv
+*.ipynb
+>>>>>>> 4cf1024013875d3a860e4cc58936bbae7ac0d06d
