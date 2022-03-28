@@ -1,3 +1,10 @@
+key.json
+wandb/
+results/
+prediction/
+best_model/
+.DS_Store
+._*
 *.pth
 __pycache__
 *.pt
@@ -6,4 +13,3 @@ __pycache__
 *.log
 wandb/*
 *.csv
-*.ipynb
