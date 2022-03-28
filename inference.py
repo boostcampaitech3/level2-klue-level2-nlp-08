@@ -16,7 +16,7 @@ def inference(model, tokenized_sent, device):
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
   """
-  dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
+  dataloader = DataLoader(tokenized_sent, batch_size=8, shuffle=False)
   model.eval()
   output_pred = []
   output_prob = []
@@ -99,7 +99,6 @@ def main(args):
       temp_pred_answer, temp_output_prob = inference(model, Re_test_dataset, device)  # model에서 class 추론
       pred_answer_list.append(temp_pred_answer)
       output_prob_list.append(temp_output_prob)
-      print(temp_pred_answer[:10])
     output_prob = output_prob_list[0]
     pred_answer = []
     for idx in range(len(pred_answer_list[0])):
@@ -116,7 +115,7 @@ def main(args):
   # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
   output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
-  output.to_csv('./prediction/submission_RobertLarg_tok_0327.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+  output.to_csv('./prediction/submission_RobertLarg_tok_0328.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
 if __name__ == '__main__':
@@ -125,7 +124,7 @@ if __name__ == '__main__':
   # model dir
   parser.add_argument('--ensemble', type=bool, default=False)
   parser.add_argument('--ensemble_num', type=int, default=3)
-  parser.add_argument('--model_dir', type=str, default="./best_model/bolim_permuTok_noentity_robLag_20ep_5e5")
+  parser.add_argument('--model_dir', type=str, default="./best_model/bolim_permuTok_spTok_robLag_6ep_5e5")
   args = parser.parse_args()
   print(args)
   main(args)

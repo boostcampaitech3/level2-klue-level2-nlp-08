@@ -73,7 +73,7 @@ def label_to_num(label):
   
   return num_label
 
-run_name = 'bolim_permuTok_noentity_robLag_20ep_5e5'
+run_name = 'bolim_pucTok_robLag_5ep_5e5'
 def train():
   seed_everything(1004)
   # load model and tokenizer
@@ -82,7 +82,7 @@ def train():
   # BertWordPieceTokenizer
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
   # tokenizer = SentencePieceBPETokenizer()
-  # num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[NER]', '[/NER]']})
+  num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[TP]', '[/TP]']})
 
   # load dataset
   train_dataset = load_data("../dataset/train/train.csv")
@@ -111,7 +111,7 @@ def train():
       model_config.num_labels = 30
 
       model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-      # model.resize_token_embeddings(tokenizer.vocab_size + num_added_sptoks)
+      model.resize_token_embeddings(tokenizer.vocab_size + num_added_sptoks)
       print(model.config)
       model.parameters
       model.to(device)
@@ -122,11 +122,11 @@ def train():
         output_dir='./results',          # output directory
         save_total_limit=3,              # number of total save model.
         save_steps=500,                 # model saving step.
-        num_train_epochs=20,              # total number of training epochs
+        num_train_epochs=5,              # total number of training epochs
         learning_rate=5e-5,               # learning_rate
         per_device_train_batch_size=32,   # batch size per device during training
         per_device_eval_batch_size=32,   # batch size for evaluation
-        warmup_steps=1000,                # number of warmup steps for learning rate scheduler
+        warmup_steps=500,                # number of warmup steps for learning rate scheduler
         weight_decay=0.01,               # strength of weight decay
         logging_dir='./logs',            # directory for storing logs
         logging_steps=100,              # log saving step.
