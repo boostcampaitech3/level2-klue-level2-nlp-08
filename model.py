@@ -1,43 +1,66 @@
 import torch.nn as nn
-from transformers import RobertaModel, RobertaPreTrainedModel, AutoConfig, AutoModelForSequenceClassification
+from transformers import RobertaModel, RobertaPreTrainedModel
 import torch
-import torch.nn.init as init
 
-def get_model(MODEL_NAME, tokenizer):
-    model_config = AutoConfig.from_pretrained(MODEL_NAME)
-    model_config.num_labels = 30
+class BERTClassifier(nn.Module):
+    def __init__(self, bert_model, hidden_size = 768, num_classes = 30, dr_rate=None, params=None):
+        super(BERTClassifier, self).__init__()
+        self.model = bert_model
+        self.dr_rate = dr_rate
+        print(self.model)
 
-    origin_roberta = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+        self.classifier = nn.Linear(hidden_size, num_classes)
+        if dr_rate:
+            self.dropout = nn.Dropout(p=dr_rate)
 
-    """
-    for param in origin_roberta.classifier.modules():
-        if isinstance(param, nn.Linear):
-            init.xavier_normal_(param.weight.data)
-            param.bias.data.fill_(0)
-    """
-    # myModel에서 linear_layer라는 함수를 추가시켰다고 가정하자
-    # origin_roberta.classifier = MyRobertaClassificationHead(config=model_config)
-    # print(origin_roberta)
-    origin_roberta.resize_token_embeddings(len(tokenizer))
+    def forward(self, input_ids, attention_mask):
+        out = self.model(input_ids = input_ids, attention_mask = attention_mask)
+        if self.dr_rate:
+            out = self.dropout(out.pooler_output)
+        else:
+            out = out.pooler_output
+        real_out = self.classifier(out)
+        return real_out
 
-    return origin_roberta
 
-class MyRobertaClassificationHead(nn.Module):
+class RobertaClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size*2)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.dropout = nn.Dropout(p = 0.5)
         self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-        self.dense2 = nn.Linear(config.hidden_size*2, config.hidden_size)
 
     def forward(self, features, **kwargs):
         x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
         x = self.dropout(x)
         x = self.dense(x)
-        x = self.dense2(x)
         x = torch.tanh(x)
         x = self.dropout(x)
         x = self.out_proj(x)
         return x
+
+class MyModel(RobertaPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.model = RobertaModel(config, add_pooling_layer=False)
+        self.last_layer = RobertaClassificationHead(config)
+
+    def forward(
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+
+    ):
+        outputs = self.model(
+            input_ids,
+            attention_mask=attention_mask,
+        )
+
+        cls_output = outputs[0]
+        logits = self.last_layer(cls_output)
+        # logits = nn.tanh(logits)
+        return logits
