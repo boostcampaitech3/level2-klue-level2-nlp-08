@@ -3,6 +3,12 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
+import re
+import urllib3
+import json
+from konlpy.tag import Mecab
+import ast
+from utils import *
 from add_entity_token import *
 
 from utils import *
@@ -77,6 +83,7 @@ def tokenized_dataset(dataset, tokenizer):
   # tokenizer.__call__
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
+    # temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
     temp = ''
     # temp = e01 + '[SEP]' + e02
     temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
@@ -87,7 +94,8 @@ def tokenized_dataset(dataset, tokenizer):
     # tokenizer.add_special_tokens(special_tokens_dict)
   tokenized_sentences = tokenizer(
       # concat_entity,
-      list(dataset['sentence']),
+      # list(text for text in dataset['sentence']),#add_spTok(text)
+      # list(dataset['sentence']),
       concat_entity,
       return_tensors="pt",
       padding=True,
