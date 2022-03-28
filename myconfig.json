@@ -1,0 +1,64 @@
+{
+    "seed": 1004,
+    "model": {
+        "name": "klue/roberta-large"
+    },
+
+    "tokenizer": {
+        "name": "klue/roberta-large"
+    },
+
+    "data": {
+        "path": "../dataset/train/train.csv",
+        "valid_size": 0.2
+    },
+    "wandb": {
+        "project" : "KLUE",
+        "entity" : "violetto",
+        "name": "dongjin",
+        "special": "Classifier_train"
+    },
+
+    "freezing": {
+            "freezing_epochs": 1,
+            "freezing_lr": 3e-3
+    },
+
+    "train": {
+        "change_optimizer": "True",
+        "optimizer": {
+            "type": "AdamW",
+            "args": {
+                "lr": 5e-5
+            }
+        },
+        "scheduler": {
+            "type": "warmup_cosine",
+            "num_warmup_steps": 500,
+            "num_cycles": 1
+        },
+        "loss": {
+            "type": "focal"
+        },
+        "train_argument": {
+            "output_dir": "./results",
+            "save_total_limit": 5,
+            "save_steps": 500,
+            "num_train_epochs": 9,
+            "learning_rate": 5e-5,
+            "per_device_train_batch_size": 32,
+            "per_device_eval_batch_size": 32,
+            "warmup_steps": 500,
+            "weight_decay": 0.01,
+            "logging_dir": "./logs",
+            "logging_steps": 100,
+            "evaluation_strategy": "steps",
+            "eval_steps": 500,
+            "load_best_model_at_end": "True",
+            "metric_for_best_model": "eval_micro f1 score",
+            "report_to": "wandb",
+            "fp16": "True",
+            "fp16_opt_level": "O1"
+        }
+    }
+}

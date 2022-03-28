@@ -3,7 +3,7 @@ import json
 import wandb
 from collections import defaultdict
 
-if __name__=="__main__":
+def makeArgument():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--file', '-f', help='Config(Option) File', dest = 'config', default='myconfig.json')
@@ -13,20 +13,39 @@ if __name__=="__main__":
 
     config = defaultdict(str)
 
+    # SEED
     config['seed'] = config_file['seed']
+
+    # MODEL
     config['model_name'] = config_file['model']['name']
+    config['change_optimizer'] = config_file['train']['change_optimizer']
+
+    # TOKENIZER
     config['tokenizer_name'] = config_file['tokenizer']['name']
+
+    # DATA
     config['data_path'] = config_file['data']['path']
+    config['valid_size'] = config_file['data']['valid_size']
+
+    # WANDB_SETTING
     config['project'] = config_file['wandb']['project']
     config['entity'] = config_file['wandb']['entity']
-    config['name'] = config_file['wandb']['name'] + config_file['wandb']['special']
+    config['name'] = config_file['wandb']['name'] + '_' +config_file['wandb']['special']
+
+
+    # EQUIP
     config['optimizer'] = config_file['train']['optimizer']['type']
     config['lr'] = config_file['train']['optimizer']['args']['lr']
     config['scheduler'] = config_file['train']['scheduler']['type']
     config['num_warmup_steps'] = config_file['train']['scheduler']['num_warmup_steps']
     config['num_cycles']=config_file['train']['scheduler']['num_cycles']
     config['loss'] = config_file['train']['loss']['type']
-    config['freezing_epochs'] = config_file['train']['freezing']['freezing_epochs']
+
+    # FREEZING
+    config['freezing_epochs'] = config_file['freezing']['freezing_epochs']
+    config['freezing_lr'] = config_file['freezing']['freezing_lr']
+
+    # TrainingArgument
     config['output_dir'] = config_file['train']['train_argument']['output_dir']
     config['save_total_limit'] = config_file['train']['train_argument']['save_total_limit']
     config['save_steps'] = config_file['train']['train_argument']['save_steps']
@@ -45,7 +64,7 @@ if __name__=="__main__":
     config['fp16'] = config_file['train']['train_argument']['fp16']
     config['fp16_opt_level'] = config_file['train']['train_argument']['fp16_opt_level']
 
-    print(config)
+    return config
 
 
 

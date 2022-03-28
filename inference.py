@@ -66,14 +66,22 @@ def load_test_dataset(dataset_dir, tokenizer):
     tokenized_test = tokenized_dataset(test_dataset, tokenizer)
     return test_dataset['id'], tokenized_test, test_label
 
-def main(args):
+def inference_main(TOKENIZER_NAME=None):
     """
       주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
     """
+
+    parser = argparse.ArgumentParser()
+
+    # model dir
+    parser.add_argument('--model_dir', type=str, default="./best_model")
+    args = parser.parse_args()
+    print(args)
+    inference_main(args)
+
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     # load tokenizer
-    Tokenizer_NAME = "klue/roberta-large"
-    tokenizer = get_tokenizer(Tokenizer_NAME)
+    tokenizer = get_tokenizer(TOKENIZER_NAME)
 
     ## load my model
     MODEL_NAME = args.model_dir  # model dir.
@@ -101,10 +109,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-
-    # model dir
-    parser.add_argument('--model_dir', type=str, default="./best_model")
-    args = parser.parse_args()
-    print(args)
-    main(args)
+    inference_main()
