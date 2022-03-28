@@ -5,3 +5,11 @@ prediction/
 best_model/
 .DS_Store
 ._*
+*.pth
+__pycache__
+*.pt
+*.bin
+*.json
+*.log
+wandb/*
+*.csv

@@ -1,14 +1,20 @@
+from email.policy import default
 import pickle as pickle
 import os
 import pandas as pd
 import torch
+<<<<<<< HEAD
 import re
 import urllib3
 import json
 from konlpy.tag import Mecab
 import ast
 from utils import *
+=======
+from add_entity_token import *
+>>>>>>> main
 
+from utils import *
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -26,9 +32,15 @@ class RE_Dataset(torch.utils.data.Dataset):
 
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
+  out_dataset = default_entity(dataset)
+  out_dataset = add_entity_token(dataset)
+  out_dataset = add_entity_typed_token(dataset)
+  out_dataset = swap_entity_typed_token(dataset)
+  
   subject_entity = []
   object_entity = []
   sentence = []
+<<<<<<< HEAD
   for i, j, sent, ids in zip(dataset['subject_entity'], dataset['object_entity'], dataset['sentence'], dataset['id']):
       i_word = i[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
       j_word = j[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
@@ -48,6 +60,25 @@ def preprocessing_dataset(dataset):
   out_dataset = pd.DataFrame(
       {'id': dataset['id'], 'sentence': sentence, 'subject_entity': subject_entity, 'object_entity': object_entity,
        'label': dataset['label'], })
+=======
+  for i,j,k in zip(dataset['subject_entity'], dataset['object_entity'], dataset['sentence']):
+    i_word = i[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
+    j_word = j[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
+
+    i_start = int(i.split('\':')[2].split(',')[0])
+    i_end = int(i.split('\':')[3].split(',')[0])
+    j_start = int(j.split('\':')[2].split(',')[0])
+    j_end = int(j.split('\':')[3].split(',')[0])
+    i_type = i[1:-1].split('\':')[4].replace("'", '').strip()
+    j_type = j[1:-1].split('\':')[4].replace("'", '').strip()
+
+    sent = typed_entity_marker(k, i_start, i_end, i_type, j_start, j_end, j_type) # from utils.py
+
+    subject_entity.append(i_word)
+    object_entity.append(j_word)
+    sentence.append(sent)
+  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':sentence,'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
+>>>>>>> main
   return out_dataset
 
 def load_data(dataset_dir):
@@ -59,13 +90,43 @@ def load_data(dataset_dir):
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
+  # concat_entity = []
+  # for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
+  #   temp = ''
+  #   temp = e01 + '[SEP]' + e02
+  #   concat_entity.append(temp)
+
+  added_special = tokenizer.add_special_tokens({'additional_special_tokens':['[SUBJ:PER]',  
+                                                                             '[SUBJ:ORG]',  
+                                                                             '[OBJ:PER]', 
+                                                                             '[OBJ:ORG]', 
+                                                                             '[OBJ:LOC]', 
+                                                                             '[OBJ:POH]', 
+                                                                             '[OBJ:NOH]', 
+                                                                             '[OBJ:DAT]', 
+                                                                             '[SUBJ]', '[/SUBJ]', '[OBJ]', '[/OBJ]']})
+  # tokenizer.__call__
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
+<<<<<<< HEAD
     temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
+=======
+    temp = ''
+    # temp = e01 + '[SEP]' + e02
+    temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
+>>>>>>> main
     concat_entity.append(temp)
+    # tokenizer에 special token 추가 : entity marker 사용 시 활성화. typed entity marker 활용 시 비활성화
+    # user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
+    # special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
+    # tokenizer.add_special_tokens(special_tokens_dict)
   tokenized_sentences = tokenizer(
       # concat_entity,
+<<<<<<< HEAD
       list(text for text in dataset['sentence']),#add_spTok(text)
+=======
+      list(dataset['sentence']),
+>>>>>>> main
       concat_entity,
       return_tensors="pt",
       padding=True,
@@ -73,4 +134,4 @@ def tokenized_dataset(dataset, tokenizer):
       max_length=256,
       add_special_tokens=True,
       )
-  return tokenized_sentences
+  return tokenized_sentences, added_special
