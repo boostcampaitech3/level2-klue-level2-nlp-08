@@ -1,11 +1,11 @@
+from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer
+
 import torch
 
 def get_tokenizer(MODEL_NAME:str):
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-
     tokenizer.add_special_tokens({'additional_special_tokens': ['[SUB]', '[/SUB]', '[OBJ]', '[/OBJ]']})
-
     return tokenizer
 
 def special_token_sentence(dataset):
@@ -52,3 +52,15 @@ class RE_Dataset(torch.utils.data.Dataset):
 
   def __len__(self):
     return len(self.labels)
+
+def tokenizing_data(train_dataset, config):
+    tokenizer = get_tokenizer(config['tokenizer_name'])
+
+    train_tokenized = tokenized_dataset(train_dataset, tokenizer)
+
+    RE_train_dataset = RE_Dataset(train_tokenized, train_dataset['label'])
+
+    RE_train_data, RE_test_data = train_test_split(RE_train_dataset, test_size=config['valid_size'],
+                                                   shuffle=True, stratify=train_dataset['label'])
+
+    return tokenizer, RE_train_data, RE_test_data

@@ -64,21 +64,3 @@ def compute_metrics(pred):
       'auprc' : auprc,
       'accuracy': acc,
   }
-
-class MyTrainer(Trainer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # config에 저장된 loss_name에 따라 다른 loss 계산
-        custom_loss = torch.nn.CrossEntropyLoss()
-        input = inputs.pop('input_ids')
-
-        labels = inputs.pop('labels')
-        attention = inputs.pop('attention_mask')
-
-        outputs = model(input_ids =input, attention_mask = attention)
-
-        loss = custom_loss(outputs,labels)
-
-        return (loss, outputs) if return_outputs else loss

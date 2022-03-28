@@ -39,29 +39,9 @@ def preprocessing_dataset(data):
 
     return dataset
 
-def load_data(dataset_dir):
-  pd_dataset = pd.read_csv(dataset_dir)
+def load_data(config):
+  pd_dataset = pd.read_csv(config['data_path'])
   dataset = preprocessing_dataset(pd_dataset)
   dataset['label'] = label_to_num(dataset['label'])
 
   return dataset
-
-"""
-def tokenized_dataset(dataset, tokenizer):
-  concat_entity = []
-  for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    temp = e01 + '[SEP]' + e02
-    concat_entity.append(temp)
-
-  tokenized_sentences = tokenizer(
-      concat_entity,
-      list(dataset['sentence']),
-      return_tensors="pt",
-      padding=True,
-      truncation=True,
-      max_length=220,
-      add_special_tokens=True,
-      )
-
-  return tokenized_sentences
-"""
