@@ -38,7 +38,7 @@ def get_scheduler(optimizer, config, num_train_steps:int = 0):
 def get_loss(name:str=None):
     if name=='focal':
         criterion = FocalLoss()
-        print(name)
+
 
     return criterion
 
