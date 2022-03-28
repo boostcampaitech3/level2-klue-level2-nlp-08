@@ -2,7 +2,7 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
-
+from utils import *
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -34,7 +34,7 @@ def preprocessing_dataset(dataset):
     i_type = i[1:-1].split('\':')[4].replace("'", '').strip()
     j_type = j[1:-1].split('\':')[4].replace("'", '').strip()
 
-    sent = add_punct(k, i_start, i_end, i_type, j_start, j_end, j_type)
+    sent = typed_entity_marker(k, i_start, i_end, i_type, j_start, j_end, j_type) # from utils.py
 
     subject_entity.append(i_word)
     object_entity.append(j_word)
@@ -57,7 +57,7 @@ def tokenized_dataset(dataset, tokenizer):
     temp = e01 + '[SEP]' + e02
     # temp = f'이 문장에서 {}과 {}은 어떤 관계일까?'  # multi 방식 사용
     concat_entity.append(temp)
-    # tokenizer에 special token 추가
+    # tokenizer에 special token 추가 : entity marker 사용 시 활성화. typed entity marker 활용 시 비활성화
     user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
     special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
     tokenizer.add_special_tokens(special_tokens_dict)
@@ -65,7 +65,7 @@ def tokenized_dataset(dataset, tokenizer):
       concat_entity,
       # list(dataset['sentence']),
       list(text for text in dataset['sentence']),
-      # concat_entity  # multi 방식 사용
+      # concat_entity,
       return_tensors="pt",
       padding=True,
       truncation=True,
