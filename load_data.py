@@ -20,6 +20,7 @@ class RE_Dataset(torch.utils.data.Dataset):
 
 def preprocessing_dataset(dataset, entity_tk_type):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
+  print(f"Preprocessing type : {entity_tk_type}\n")
   subject_entity = []
   object_entity = []
   sentence = []
