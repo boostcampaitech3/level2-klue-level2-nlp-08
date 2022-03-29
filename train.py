@@ -114,7 +114,7 @@ def train():
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-      output_dir = f'./results/RL_typed_punct',#{n_fold}',          # output directory
+      output_dir = f'./results/RL_typed_punct_LS',#{n_fold}',          # output directory
       save_total_limit=2,              # number of total save model.
       save_steps=500,                 # model saving step.
       num_train_epochs=5,              # total number of training epochs
@@ -133,9 +133,10 @@ def train():
       eval_steps = 500,            # evaluation step.
       load_best_model_at_end = True,  # Wandb에 best model checkpoint 저장
       report_to = "wandb",         # Wandb에 log
-      run_name = f"RL_typed_punct",#_{n_fold}",               # Wandb run name   {번호}_{Model}_{이전 Model 번호}_{변경점}
+      run_name = f"RL_typed_punct_LS",#_{n_fold}",               # Wandb run name   {번호}_{Model}_{이전 Model 번호}_{변경점}
       fp16=True,
-      fp16_opt_level="O1"
+      fp16_opt_level="O1",
+      label_smoothing_factor=0.1
     )
 
   added_special = 0
@@ -145,7 +146,7 @@ def train():
 
   #kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1004)
   #train_val_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
-  run = wandb.init(project="KLUE", entity="miml", name = f"chi0 RL_typed_punct")
+  run = wandb.init(project="KLUE", entity="miml", name = f"chi0 RL_typed_punct_LS")
   #for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
   #for n_fold, (train_idx, valid_idx) in enumerate(kfold.split(RE_train_dataset, RE_train_dataset.labels)):
 
@@ -191,7 +192,7 @@ def train():
     # trainer.train() 
   
   trainer = CustomTrainer(
-      #loss_name='focal',
+      loss_name='LabelSmoothing',
       model=model,                         # the instantiated 🤗 Transformers model to be trained
       args=training_args,                  # training arguments, defined above
       train_dataset=RE_train_dataset,            # training dataset
@@ -201,7 +202,7 @@ def train():
   trainer.train()
 
   # train model
-  model.save_pretrained(f'./best_model/RL_typed_punct')#_{n_fold}')
+  model.save_pretrained(f'./best_model/RL_typed_punct_LS')#_{n_fold}')
     
     #run.finish()
     #print(f"\n{'='*50}Fold {n_fold} Finish{'='*50}\n")
