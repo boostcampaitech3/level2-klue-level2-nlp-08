@@ -10,7 +10,6 @@ from torch.utils.data import Subset
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from load_data import *
-from tokenizers import SentencePieceBPETokenizer,BertWordPieceTokenizer,SentencePieceUnigramTokenizer
 # from eunjeon import Mecab
 # from konlpy.tag import Kkma
 # import sentencepiece as spm

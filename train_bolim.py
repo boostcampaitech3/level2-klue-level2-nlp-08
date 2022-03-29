@@ -182,7 +182,6 @@ def train():
   model.save_pretrained('./best_model/' + run_name)
 
 def main():
-    wandb.init(project="KLUE", entity="miml", name=run_name)
     train()
 
 if __name__ == '__main__':
