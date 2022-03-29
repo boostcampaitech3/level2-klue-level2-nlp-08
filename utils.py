@@ -101,3 +101,18 @@ def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start
 
 def default_sent(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
     return text
+
+
+def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
+    subj_word = text[subj_start:subj_end + 1]
+    obj_word = text[obj_start:obj_end + 1]
+    
+    if subj_start < obj_start:
+      new_text = text[:subj_start] + f'@*{TYPE[subj_type]}*{subj_word}@' + text[subj_end + 1:obj_start] + \
+                 f'#^{TYPE[obj_type]}^{obj_word}#' + text[obj_end + 1:]
+    else:
+      new_text = text[:obj_start] + f'#^{TYPE[obj_type]}^{obj_word}#' + text[obj_end + 1:subj_start] + \
+                 f'@*{TYPE[subj_type]}*{subj_word}@' + text[subj_end + 1:]
+    
+    return new_text
