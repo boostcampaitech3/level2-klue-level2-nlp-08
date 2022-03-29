@@ -120,25 +120,24 @@ def main(args, MODE:str = "default"):
     ## make csv file with predicted answer
     #########################################################
     # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
-    output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
+  output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
-    output.to_csv('./prediction/RL_typed_punct.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
-    #### 필수!! ##############################################
-    print('---- Finish! ----')
+  output.to_csv('./prediction/RL_typed_punct.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+  #### 필수!! ##############################################
+  print('---- Finish! ----')
 
 if __name__ == '__main__':
   MODE = "default"
 
   parser = argparse.ArgumentParser()
-  
+  run_time = "Not_Setting"
   # model dir
-  parser.add_argument('--model_dir', type=str, default="./best_model")
   if MODE == "bolim":
     parser.add_argument('--ensemble', type=bool, default=False)
     parser.add_argument('--ensemble_num', type=int, default=3)
-    parser.add_argument('--model_dir', type=str, default="./best_model/bolim_permuTok_spTok_robLag_6ep_5e5")
+    parser.add_argument('--model_dir', type=str, default="./best_model/"+run_time)
   else:
-    parser.add_argument('--model_dir', type=str, default="./best_model")
+    parser.add_argument('--model_dir', type=str, default="./best_model/"+run_time)
 
   args = parser.parse_args()
   print(args)

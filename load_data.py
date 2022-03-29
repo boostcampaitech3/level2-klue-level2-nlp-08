@@ -66,7 +66,7 @@ def preprocessing_dataset(dataset, entity_tk_type):
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':sentence,'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
 
-def load_data(dataset_dir, entity_tk_type='default_sent'):
+def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
   pd_dataset = pd.read_csv(dataset_dir)
   dataset = preprocessing_dataset(pd_dataset, entity_tk_type)

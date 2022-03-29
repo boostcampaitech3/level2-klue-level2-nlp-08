@@ -1,6 +1,28 @@
 import sklearn
 import numpy as np
+import random
+import torch
+import pickle
+
 from sklearn.metrics import accuracy_score, f1_score
+
+def label_to_num(label):
+    num_label = []
+    with open('dict_label_to_num.pkl', 'rb') as f:
+        dict_label_to_num = pickle.load(f)
+    for v in label:
+        num_label.append(dict_label_to_num[v])
+
+    return num_label
+
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
