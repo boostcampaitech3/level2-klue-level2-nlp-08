@@ -28,6 +28,30 @@ class FocalLoss(nn.Module):
             reduction=self.reduction
         )
 
+# https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
+class F1Loss(nn.Module):
+    def __init__(self, classes=30, epsilon=1e-7):
+        super().__init__()
+        self.classes = classes
+        self.epsilon = epsilon
+    def forward(self, y_pred, y_true):
+        assert y_pred.ndim == 2
+        assert y_true.ndim == 1
+        y_true = F.one_hot(y_true, self.classes).to(torch.float32)
+        y_pred = F.softmax(y_pred, dim=1)
+
+        tp = (y_true * y_pred).sum(dim=0).to(torch.float32)
+        tn = ((1 - y_true) * (1 - y_pred)).sum(dim=0).to(torch.float32)
+        fp = ((1 - y_true) * y_pred).sum(dim=0).to(torch.float32)
+        fn = (y_true * (1 - y_pred)).sum(dim=0).to(torch.float32)
+
+        precision = tp / (tp + fp + self.epsilon)
+        recall = tp / (tp + fn + self.epsilon)
+
+        f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
+        f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
+        return 1 - f1.mean()
+
 
 """https://kyunghyunlim.github.io/nlp/ml_ai/2021/10/01/hf_culoss.html"""
 class CustomTrainer(Trainer):
@@ -36,16 +60,22 @@ class CustomTrainer(Trainer):
         self.loss_name = loss_name
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        if self.loss_name == 'CrossEntropy':
-            custom_loss = nn.CrossEntropyLoss()
-        elif self.loss_name == 'focal':
-            custom_loss = FocalLoss()
-        elif self.label_smoother is not None and self.loss_name == 'LabelSmoothing':
-            custom_loss = self.label_smoother
-
+        """ Default Loss : CrossEntropyLoss (defined at RobertaForMaskedLM) """
         labels = inputs.pop('labels')
         outputs = model(**inputs)
-        loss = custom_loss(outputs[0], labels)
+        custom_loss = None
+        
+        if self.loss_name == 'focal':
+            custom_loss = FocalLoss()
+        elif self.loss_name == 'f1':
+            custom_loss = F1Loss()
+        elif self.loss_name == 'LabelSmoothing':
+            loss = self.label_smoother(outputs, labels)
+        elif self.loss_name == 'CrossEntropy':
+            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+
+        if custom_loss is not None:
+            loss = custom_loss(outputs['logits'], labels)
         
         return (loss, outputs) if return_outputs else loss
 
