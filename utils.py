@@ -11,9 +11,9 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     random.seed(seed)
-mecab = Mecab()
 
 def add_spTok(text):
+    mecab = Mecab()
     for noun in mecab.nouns(text):
         text = text.replace(noun,'[NER]'+noun+'[/NER]')
     return text
