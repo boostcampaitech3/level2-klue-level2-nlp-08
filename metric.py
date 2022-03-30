@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score
 
 def label_to_num(label):
     num_label = []
-    with open('dict_label_to_num.pkl', 'rb') as f:
+    with open('./dict_num/dict_label_to_num.pkl', 'rb') as f:
         dict_label_to_num = pickle.load(f)
     for v in label:
         num_label.append(dict_label_to_num[v])
