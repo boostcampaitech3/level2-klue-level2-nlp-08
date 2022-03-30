@@ -34,17 +34,6 @@ def preprocessing_dataset(dataset, entity_tk_type):
     subj_type = subj[1:-1].split('\':')[4].replace("'", '').strip()
     obj_type = obj[1:-1].split('\':')[4].replace("'", '').strip()
 
-    """
-      add_punct --> add_entity_type_suffix_kr                 :: *entity[TP]TYPE[/TP]*
-      typed_entity_marker --> add_entity_type_punct_kr        :: @*TYPE*entity@
-      entity_marker --> add_entity_type_token                 :: [subj_type]entity[/subj_type]
-
-      add_entity_token -->                                    :: [SUBJ]entity[/SUBJ]
-      add_entity_typed_token --> add_entity_token_with_type   :: [SUBJ:type]entity[/SUBJ]
-      swap_entity_typed_token --> swap_entity_token_with_type :: entity --> [SUBJ:type]
-      
-      default_sent                                            :: 그대로
-    """
     preprocessed_sent = getattr(utils, entity_tk_type)(sent, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
     """
     entity_tk_type
@@ -73,34 +62,17 @@ def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
   
   return dataset
 
-def tokenized_dataset(dataset, tokenizer, add_special = False):
+def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   # tokenizer.__call__
-
-  if add_special:
-    added_special = tokenizer.add_special_tokens({'additional_special_tokens': ['[SUBJ:PER]',
-                                                                                  '[SUBJ:ORG]',
-                                                                                  '[OBJ:PER]',
-                                                                                  '[OBJ:ORG]',
-                                                                                  '[OBJ:LOC]',
-                                                                                  '[OBJ:POH]',
-                                                                                  '[OBJ:NOH]',
-                                                                                  '[OBJ:DAT]',
-                                                                                  '[SUBJ]', '[/SUBJ]', '[OBJ]',
-                                                                                  '[/OBJ]']})
 
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     # temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
     temp = ''
-    # temp = e01 + '[SEP]' + e02
     temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
     concat_entity.append(temp)
-    # tokenizer에 special token 추가 : entity marker 사용 시 활성화. typed entity marker 활용 시 비활성화
-    # user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
-    # special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
-    # tokenizer.add_special_tokens(special_tokens_dict)
-
+    
   tokenized_sentences = tokenizer(
       concat_entity,
       list(dataset['sentence']),
@@ -110,8 +82,5 @@ def tokenized_dataset(dataset, tokenizer, add_special = False):
       max_length=256,
       add_special_tokens=True,
       )
-
-  if add_special:
-    return tokenized_sentences, added_special
-  else:
-    return tokenized_sentences
+  
+  return tokenized_sentences
