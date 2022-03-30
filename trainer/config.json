@@ -1,0 +1,47 @@
+{
+    "MODEL_NAME": "klue/roberta-large",
+
+    "dataset_path": "../../../dataset/train/train_origin.csv",
+
+    "TrainingArguments": {
+        "output_dir": "../results/",
+        "save_total_limit": 2,
+        "save_steps": 500,
+        "num_train_epochs": 5,
+        "learning_rate": 5e-5,
+        "per_device_train_batch_size": 32,
+        "per_device_eval_batch_size": 32,
+        "warmup_steps": 500,
+        "weight_decay": 0.01,
+        "logging_dir": "../logs",
+        "logging_steps": 100,
+        "evaluation_strategy": "steps",
+        "eval_steps": 500,
+        "load_best_model_at_end": true,
+        "report_to": "wandb",
+        "fp16": true,
+        "fp16_opt_level": "O1",
+        "label_smoothing_factor": 0.1
+    },
+
+    "Trainer": {
+        "loss_name": "CrossEntropy",
+        "custom": false
+    },
+
+    "run_name": "chi0 RL_typed_punct",
+
+    "LoadData": {
+        "entity_tk_type": "add_entity_type_punct_kr"
+    },
+
+    "wandb": {
+        "project": "KLUE",
+        "entity": "miml",
+        "run_name": "Not_Setting"
+    },
+    
+    "random_seed": 1004,
+
+    "train_type": "valid_train"
+}
