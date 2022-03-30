@@ -1,4 +1,3 @@
-from email.policy import default
 import pandas as pd
 import torch
 
@@ -46,8 +45,20 @@ def preprocessing_dataset(dataset, entity_tk_type):
       
       default_sent                                            :: 그대로
     """
-    #preprocessed_sent = add_entity_type_punct_kr(sent, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type) # from utils.py
     preprocessed_sent = getattr(utils, entity_tk_type)(sent, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    """
+    entity_tk_type
+    
+    add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    add_entity_type_punct_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    def add_entity_type_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    def add_entity_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    def add_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    def default_sent(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
+    """
+
 
     subject_entity.append(subj_word)
     object_entity.append(obj_word)
@@ -55,25 +66,29 @@ def preprocessing_dataset(dataset, entity_tk_type):
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':sentence,'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
 
-def load_data(dataset_dir, entity_tk_type='default_sent'):
+def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
   pd_dataset = pd.read_csv(dataset_dir)
   dataset = preprocessing_dataset(pd_dataset, entity_tk_type)
   
   return dataset
 
-def tokenized_dataset(dataset, tokenizer):
+def tokenized_dataset(dataset, tokenizer, add_special = False):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
-  added_special = tokenizer.add_special_tokens({'additional_special_tokens':['[SUBJ:PER]',  
-                                                                             '[SUBJ:ORG]',  
-                                                                             '[OBJ:PER]', 
-                                                                             '[OBJ:ORG]', 
-                                                                             '[OBJ:LOC]', 
-                                                                             '[OBJ:POH]', 
-                                                                             '[OBJ:NOH]', 
-                                                                             '[OBJ:DAT]', 
-                                                                             '[SUBJ]', '[/SUBJ]', '[OBJ]', '[/OBJ]']})
   # tokenizer.__call__
+
+  if add_special:
+    added_special = tokenizer.add_special_tokens({'additional_special_tokens': ['[SUBJ:PER]',
+                                                                                  '[SUBJ:ORG]',
+                                                                                  '[OBJ:PER]',
+                                                                                  '[OBJ:ORG]',
+                                                                                  '[OBJ:LOC]',
+                                                                                  '[OBJ:POH]',
+                                                                                  '[OBJ:NOH]',
+                                                                                  '[OBJ:DAT]',
+                                                                                  '[SUBJ]', '[/SUBJ]', '[OBJ]',
+                                                                                  '[/OBJ]']})
+
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     # temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
@@ -85,6 +100,7 @@ def tokenized_dataset(dataset, tokenizer):
     # user_defined_symbols = ['[ORG]', '[/ORG]', '[DAT]', '[/DAT]', '[LOC]', '[/LOC]', '[PER]', '[/PER]', '[POH]', '[/POH]', '[NOH]', '[/NOH]']
     # special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
     # tokenizer.add_special_tokens(special_tokens_dict)
+
   tokenized_sentences = tokenizer(
       concat_entity,
       list(dataset['sentence']),
@@ -94,4 +110,8 @@ def tokenized_dataset(dataset, tokenizer):
       max_length=256,
       add_special_tokens=True,
       )
-  return tokenized_sentences, added_special
+
+  if add_special:
+    return tokenized_sentences, added_special
+  else:
+    return tokenized_sentences
