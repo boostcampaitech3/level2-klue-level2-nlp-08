@@ -21,6 +21,7 @@ def train(MODE="default", run_name="Not_Setting"):
   MODEL_NAME = "klue/roberta-large"
 
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  # train_cv.py
   if MODE=="cv":
       num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[TP]', '[/TP]']})
   # TODO : [TP], [/TP] special token 추가할 경우
@@ -30,19 +31,8 @@ def train(MODE="default", run_name="Not_Setting"):
 
   # load dataset
   train_dataset = load_data(DATA_PATH)
-
   train_label = label_to_num(train_dataset['label'].values)
-  # dev_label = label_to_num(dev_dataset['label'].values)
-
-  add_special_tokenizer = False
-  # tokenizing dataset
-  if add_special_tokenizer:
-    tokenized_train, added_special = tokenized_dataset(train_dataset, tokenizer, add_special=True)
-  else:
-    tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-    # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
-
-  # make dataset for pytorch.
+  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
 
   valid = True
@@ -73,7 +63,7 @@ def train(MODE="default", run_name="Not_Setting"):
 
   wandb.init(
       project='KLUE',
-      entity='violetto',
+      entity='miml',
       name=run_name
   )
 
@@ -120,8 +110,8 @@ def train(MODE="default", run_name="Not_Setting"):
           compute_metrics=compute_metrics  # define metrics function
       )
 
+  # Hard Voting Ensemble
   ensemble = False
-  valid_add = False
   if ensemble:
       train_val_split = StratifiedShuffleSplit(n_splits=3, test_size=0.1, random_state=1004)
       idx = 0
@@ -150,34 +140,6 @@ def train(MODE="default", run_name="Not_Setting"):
           # train model
           trainer.train()
           model.save_pretrained('./best_model/' + run_name + '_' + str(idx))
-
-  elif valid_add:
-      train_val_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
-      idx = 0
-      for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
-          idx += 1
-          train_data = Subset(RE_train_dataset, train_idx)
-          valid_data = Subset(RE_train_dataset, valid_idx)
-
-          trainer = Trainer(
-              model=model,  # the instantiated 🤗 Transformers model to be trained
-              args=training_args,  # training arguments, defined above
-              train_dataset=train_data,
-              eval_dataset=valid_data,
-              compute_metrics=compute_metrics  # define metrics function
-          )
-          trainer.train()
-
-          # val set train
-          trainer = Trainer(
-              model=model,  # the instantiated 🤗 Transformers model to be trained
-              args=training_args,  # training arguments, defined above
-              train_dataset=valid_data,
-              compute_metrics=compute_metrics  # define metrics function
-          )
-          # train model
-          trainer.train()
-      model.save_pretrained('./best_model/' + run_name)
 
   else:
       trainer.train()
