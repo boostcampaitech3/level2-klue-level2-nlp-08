@@ -72,8 +72,8 @@ class CustomTrainer(Trainer):
         elif self.loss_name == 'LabelSmoothing':
             loss = self.label_smoother(outputs, labels)
         elif self.loss_name == 'CrossEntropy':
-            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
+            custom_loss = nn.CrossEntropyLoss()
+            
         if custom_loss is not None:
             loss = custom_loss(outputs['logits'], labels)
         
