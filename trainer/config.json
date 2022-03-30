@@ -3,6 +3,8 @@
 
     "dataset_path": "../../dataset/train/train_origin.csv",
 
+    "entity_tk_type": "add_entity_type_punct_kr",
+
     "TrainingArguments": {
         "output_dir": "./results/",
         "save_total_limit": 2,

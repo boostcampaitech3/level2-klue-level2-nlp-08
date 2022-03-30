@@ -23,7 +23,7 @@ def valid_train(config):
   # TODO : train.csv 파일 경로
 
   # load dataset
-  train_dataset = load_data(DATA_PATH)
+  train_dataset = load_data(DATA_PATH, config['entity_tk_type'])
   train_label = label_to_num(train_dataset['label'].values)
   tokenized_train = tokenized_dataset(train_dataset, tokenizer)
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
