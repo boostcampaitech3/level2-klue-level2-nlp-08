@@ -9,7 +9,7 @@ best_model/
 __pycache__
 *.pt
 *.bin
-*.json
+
 *.log
 wandb/*
 *.csv
