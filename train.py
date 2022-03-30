@@ -8,10 +8,11 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
     Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, EarlyStoppingCallback
 from load_data import *
 from metric import *
+from model import *
 
 import wandb
 import random
-from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit, train_test_split
 from torch.utils.data import Subset
 from custom_trainer import CustomTrainer
 
@@ -36,11 +37,10 @@ def train(MODE="default", run_name="Not_Setting"):
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
 
   valid = True
+  valid_size = 0.1
   if valid:
-    train_valid_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=1004)
-    for train_idx, valid_idx in train_valid_split(RE_train_dataset, RE_train_dataset.labels):
-        RE_train_dataset = Subset(RE_train_dataset, train_idx)
-        RE_dev_dataset = Subset(RE_train_dataset, valid_idx)
+      RE_train_dataset, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
+                                                     shuffle=True, stratify=train_dataset['label'])
   else:
       RE_dev_dataset = RE_train_dataset
 
@@ -51,7 +51,11 @@ def train(MODE="default", run_name="Not_Setting"):
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  model_default = True
+  if model_default:
+      model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  else:
+      get_model(MODEL_NAME, tokenizer=tokenizer)
   print(model.config)
   model.parameters
   model.to(device)
@@ -147,7 +151,7 @@ def train(MODE="default", run_name="Not_Setting"):
 
 def main():
   MODE = "default"
-  run_name = "Not_Setting"
+  run_name = "default_Setting"
 
   train(MODE=MODE, run_name=run_name)
 
