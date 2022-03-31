@@ -15,3 +15,5 @@ wandb/*
 *.csv
 .idea/
 .ipynb_checkpoints/
+TextFile/
+logs/
