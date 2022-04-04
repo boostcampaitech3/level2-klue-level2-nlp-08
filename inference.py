@@ -12,6 +12,7 @@ from tqdm import tqdm
 from collections import Counter
 
 from model import MyRobertaForSequenceClassification, get_model
+from tokenizing import tokenized_dataset
 
 
 def inference(model, tokenized_sent, device):

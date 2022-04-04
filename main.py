@@ -1,5 +1,6 @@
 from sklearn.model_selection import train_test_split
 
+from MyDataset import *
 from train import *
 from utils import *
 from metric import *
@@ -11,7 +12,7 @@ from model import *
 def main():
   torch.cuda.empty_cache()
   MODE = "default"
-  run_name = "Not Setting"
+  run_name = "Dongjin_subobj_withtype"
   ##############SEED SETTING###############
   SEED_NUM = 1004
   seed_everything(SEED_NUM)
@@ -22,6 +23,7 @@ def main():
   entity_tk_type = 'special_token_sentence_with_type'
   raw_data = load_data(dataset_dir='../dataset/train/cleaned_train.csv',
                        entity_tk_type=entity_tk_type)
+  print(raw_data)
   train_label = label_to_num(raw_data['label'].values)
   """
   entity_tk_type
@@ -38,26 +40,26 @@ def main():
   default_sent
   add_entity_type_punct_kr_subj_obj
   """
-  print('='*10 + f"Preprocessing type : {entity_tk_type}\n"+'='*10)
+  print('='*10 + f"Preprocessing type : {entity_tk_type}"+'='*10)
 
   ##############TOKENIZING DATA###############
   tokenizer_name = "klue/roberta-large"
-  tokenizer, train_data = tokenizing_data(train_dataset=raw_data, tokenizer_name=tokenizer_name)
+  tokenizer, train_data = tokenizing_data(train_dataset=raw_data, tokenizer_name=tokenizer_name,
+                                          MODE="token")
 
   print("=" * 10 + f"TOKENIZIER_NAME : {tokenizer_name}" + "=" * 10)
 
   ##############MAKE DATASET###############
-  RE_train_dataset = RE_Dataset(train_data, train_label)
+  RE_train_dataset = get_dataset(train_data, train_label, change=True)
 
   valid = True
   valid_size = 0.1
   if valid:
       RE_train_dataset, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
-                                                     shuffle=True, stratify=train_data['label'])
+                                                     shuffle=True, stratify=raw_data['label'])
   else:
       _, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
-                                                          shuffle=True, stratify=train_data['label'])
-
+                                                          shuffle=True, stratify=raw_data['label'])
 
   if valid:
       wandb.init(
@@ -81,7 +83,7 @@ def main():
 
   ##############GET MODEL###############
   train(RE_train_dataset=RE_train_dataset, RE_dev_dataset=RE_dev_dataset,
-        MODE_NAME=MODE, run_name = run_name, model = model, tokenizer = tokenizer)
+        MODE=MODE, run_name = run_name, model = model, tokenizer = tokenizer)
 
 if __name__ == '__main__':
   main()

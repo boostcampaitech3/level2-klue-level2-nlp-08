@@ -16,9 +16,9 @@ def get_tokenizer(tokenizer_name, MODE="default"):
                                                                 '[SUB;PER]', '[/SUB;PER]',
                                                                 '[OBJ;PER]', '[/OBJ;PER]',
                                                                 '[OBJ;LOC]', '[/OBJ;LOC]',
-                                                                '[OBJ;DAT]', '[/OBJ;ORG]',
+                                                                '[OBJ;DAT]', '[/OBJ;DAT]',
                                                                 '[OBJ;ORG]', '[/OBJ;ORG]',
-                                                                '[OBJ;POH]', '[/OBJ;NOH]',
+                                                                '[OBJ;POH]', '[/OBJ;POH]',
                                                                 '[OBJ;NOH]', '[/OBJ;NOH]',
                                                                 ]})
     elif MODE=="cv" or MODE=="add_sptok":
