@@ -23,6 +23,8 @@ def preprocessing_dataset(dataset, entity_tk_type):
   subject_entity = []
   object_entity = []
   sentence = []
+  subject_entity_type = []
+  object_entity_type = []
   for subj,obj,sent in zip(dataset['subject_entity'], dataset['object_entity'], dataset['sentence']):
     subj_word = subj[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
     obj_word = obj[1:-1].split('\', ')[0].split(':')[1].replace("'", '').strip()
@@ -38,6 +40,7 @@ def preprocessing_dataset(dataset, entity_tk_type):
     """
     entity_tk_type
     
+    add_entity_type_punct_star(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
     add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
     add_entity_type_punct_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
     def add_entity_type_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
@@ -52,7 +55,11 @@ def preprocessing_dataset(dataset, entity_tk_type):
     subject_entity.append(subj_word)
     object_entity.append(obj_word)
     sentence.append(preprocessed_sent)
-  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':sentence,'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
+    subject_entity_type.append(subj_type)
+    object_entity_type.append(obj_type)
+  out_dataset = pd.DataFrame(
+    {'id': dataset['id'], 'sentence': sentence, 'subject_entity': subject_entity, 'object_entity': object_entity,
+     'subject_entity_type': subject_entity_type, 'object_entity_type': object_entity_type, 'label': dataset['label'], })
   return out_dataset
 
 def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
@@ -67,11 +74,10 @@ def tokenized_dataset(dataset, tokenizer):
   # tokenizer.__call__
 
   concat_entity = []
-  for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    # temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
-    temp = ''
-    temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
-    concat_entity.append(temp)
+  for e01, e02, e01_type, e02_type in zip(dataset['subject_entity'], dataset['object_entity'],dataset['subject_entity_type'],dataset['object_entity_type']):
+    temp1 = f'*{e01}[{e01_type}]* 와  + *{e02}[{e02_type}]* 의 관계를 구하시오.'
+    temp2 = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
+    concat_entity.append(temp2)
     
   tokenized_sentences = tokenizer(
       concat_entity,
