@@ -2,7 +2,7 @@ from konlpy.tag import Mecab
 import torch
 import numpy as np
 import random
-
+TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
 def seed_everything(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -17,10 +17,17 @@ def add_spTok(text):
     for noun in mecab.nouns(text):
         text = text.replace(noun,'[NER]'+noun+'[/NER]')
     return text
-
+# *entity[TYPE]*  *entity[TYPE]*
+def add_entity_type_punct_star(text, i_start, i_end, i_type,j_start, j_end, j_type):
+    if i_start < j_start:
+        new_text = text[:i_start] + '*' + text[i_start:i_end + 1] + '[' + TYPE[i_type] + ']*' + text[i_end + 1:j_start] + '*' + \
+               text[j_start:j_end + 1] + '[' + TYPE[j_type] + ']*'  + text[j_end + 1:]
+    else:
+        new_text = text[:j_start] + '*' + text[j_start:j_end + 1] + '[' + TYPE[j_type] + ']*' + text[j_end + 1:i_start] + '*' + \
+               text[i_start:i_end + 1] + '[' + TYPE[i_type] + ']*' + text[i_end + 1:]
+    return new_text
 # *entity[TP]TYPE[/TP]*  * entity[TP]TYPE[/TP]*
 def add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
-    TYPE = {'ORG':'단체정보','PER':'사람정보','DAT':'날짜정보','LOC':'위치정보','POH':'기타정보','NOH':'기타 수량표현'}
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     
@@ -38,7 +45,6 @@ def add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, 
 
 # @*TYPE*entity@  #^TYPE^entity#
 def add_entity_type_punct_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
-    TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     
