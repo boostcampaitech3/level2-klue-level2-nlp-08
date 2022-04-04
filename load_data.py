@@ -70,6 +70,9 @@ def load_data(dataset_dir):
 
 def tokenized_dataset(dataset, tokenizer):
     """tokenizer에 따라 sentence를 tokenizing 합니다."""
+    # user_defined_symbols = ['[E1]', '[/E1]', '[E2]', '[/E2]']
+    # special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
+    # tokenizer.add_special_tokens(special_tokens_dict)
     concat_entity = []
     for e01, e02 in zip(dataset["subject_entity"], dataset["object_entity"]):
         temp = f"이 문장에서 @{e01}@과 #{e02}#은 어떤 관계일까?"  # multi 방식 사용
