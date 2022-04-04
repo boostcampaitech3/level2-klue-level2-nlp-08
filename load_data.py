@@ -41,7 +41,7 @@ def preprocessing_dataset(dataset):
         i_type = i[1:-1].split("':")[4].replace("'", "").strip()
         j_type = j[1:-1].split("':")[4].replace("'", "").strip()
 
-        sent = typed_entity_marker(
+        sent = entity_marker2(
             k, i_start, i_end, i_type, j_start, j_end, j_type
         )  # from utils.py
 
