@@ -16,28 +16,43 @@ from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit, tra
 from torch.utils.data import Subset
 from custom_trainer import CustomTrainer
 
-def train(MODE="default", run_name="Not_Setting"):
+def train(MODE="default", run_name="NoSetting"):
   seed_everything(1004)
   # load model and tokenizer
   MODEL_NAME = "klue/roberta-large"
 
+  # sentence preprocessing type
+  entity_tk_type = 'add_entity_type_punct_star'
+
+  # valid set
+  valid = False
+  valid_size = 0.1
+
+  # custom Trainer
+  custom = False
+
+  # model modification
+  model_default = True
+
+  # hard-voting ensemble
+  ensemble = True
+
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-  # train_cv.py
-  if MODE=="cv":
+  num_added_sptoks = 0
+  if MODE=="add_sptok":
       num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[TP]', '[/TP]']})
   # TODO : [TP], [/TP] special token 추가할 경우
 
-  DATA_PATH = '../dataset/train/train.csv'
+  DATA_PATH = '../../dataset/train/cleaned_train.csv'
   # TODO : train.csv 파일 경로
 
   # load dataset
-  train_dataset = load_data(DATA_PATH)
+  train_dataset = load_data(DATA_PATH,entity_tk_type)
   train_label = label_to_num(train_dataset['label'].values)
   tokenized_train = tokenized_dataset(train_dataset, tokenizer)
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
 
-  valid = True
-  valid_size = 0.1
+
   if valid:
       RE_train_dataset, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
                                                      shuffle=True, stratify=train_dataset['label'])
@@ -51,7 +66,7 @@ def train(MODE="default", run_name="Not_Setting"):
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
-  model_default = True
+
   if model_default:
       model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   else:
@@ -75,7 +90,7 @@ def train(MODE="default", run_name="Not_Setting"):
       output_dir=output_dir,  # output directory
       save_total_limit=5,  # number of total save model.
       save_steps=500,  # model saving step.
-      num_train_epochs=5,  # total number of training epochs
+      num_train_epochs=1,  # total number of training epochs
       learning_rate=5e-5,  # learning_rate
       per_device_train_batch_size=32,  # batch size per device during training
       per_device_eval_batch_size=32,  # batch size for evaluation
@@ -95,7 +110,6 @@ def train(MODE="default", run_name="Not_Setting"):
       label_smoothing_factor=label_smoothing_factor
   )
 
-  custom = False
   if custom:
       trainer = CustomTrainer(
           loss_name='LabelSmoothing',
@@ -115,7 +129,7 @@ def train(MODE="default", run_name="Not_Setting"):
       )
 
   # Hard Voting Ensemble
-  ensemble = False
+
   if ensemble:
       train_val_split = StratifiedShuffleSplit(n_splits=3, test_size=0.1, random_state=1004)
       idx = 0
@@ -126,7 +140,7 @@ def train(MODE="default", run_name="Not_Setting"):
 
           model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
           model.resize_token_embeddings(tokenizer.vocab_size + num_added_sptoks)
-          # TODO : MODE가 "cv"여야지만 num_added_sptoks가 설정됨
+          # TODO : MODE가 "add_sptok"여야지만 num_added_sptoks가 설정됨
           print(model.config)
           model.parameters
           model.to(device)
@@ -151,7 +165,7 @@ def train(MODE="default", run_name="Not_Setting"):
 
 def main():
   MODE = "default"
-  run_name = "default_Setting"
+  run_name = "test_bolim"
 
   train(MODE=MODE, run_name=run_name)
 
