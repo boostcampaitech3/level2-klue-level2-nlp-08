@@ -9,25 +9,15 @@ from time import sleep
 
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-
-def get_model(MODEL_NAME, tokenizer, dataset):
+def get_model(MODEL_NAME, tokenizer, model_default=True):
     model_config = AutoConfig.from_pretrained(MODEL_NAME)
     model_config.num_labels = 30
 
-    """
-    origin_roberta = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-
-    # myModel에서 linear_layer라는 함수를 추가시켰다고 가정하자
-    origin_roberta.classifier = MyRobertaClassificationHead(config=model_config)
-    # print(origin_roberta)
-
-    print(origin_roberta)
-    """
-
-
-    model = MyRobertaForSequenceClassification(config=model_config)
-
-    model.resize_token_embeddings(len(tokenizer))
+    if model_default:
+        model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+    else:
+        model = MyRobertaForSequenceClassification(config=model_config)
+        model.resize_token_embeddings(len(tokenizer))
 
     return model
 

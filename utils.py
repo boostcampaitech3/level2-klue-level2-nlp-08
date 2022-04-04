@@ -3,20 +3,13 @@ import torch
 import numpy as np
 import random
 TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
-def seed_everything(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
 
 def add_spTok(text):
     mecab = Mecab()
     for noun in mecab.nouns(text):
         text = text.replace(noun,'[NER]'+noun+'[/NER]')
     return text
+
 # *entity[TYPE]*  *entity[TYPE]*
 def add_entity_type_punct_star(text, i_start, i_end, i_type,j_start, j_end, j_type):
     if i_start < j_start:
@@ -26,6 +19,7 @@ def add_entity_type_punct_star(text, i_start, i_end, i_type,j_start, j_end, j_ty
         new_text = text[:j_start] + '*' + text[j_start:j_end + 1] + '[' + TYPE[j_type] + ']*' + text[j_end + 1:i_start] + '*' + \
                text[i_start:i_end + 1] + '[' + TYPE[i_type] + ']*' + text[i_end + 1:]
     return new_text
+
 # *entity[TP]TYPE[/TP]*  * entity[TP]TYPE[/TP]*
 def add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
     subj_word = text[subj_start:subj_end + 1]
@@ -109,6 +103,7 @@ def special_token_sentence(text, subj_start, subj_end, subj_type, obj_start, obj
         new_text = sentence1[:obj_start] + '[OBJ]' + sentence1[obj_start:obj_end + 1] + '[/OBJ]' + sentence1[obj_end + 1:]
     return new_text
 
+# [OBJ;obj_type] object_entity [/OBJ;obj_type], [SUB;subj_type] subject_entity [/SUB;subj_type]
 def special_token_sentence_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
     concat_entity = []
     sentence1: str
@@ -136,9 +131,7 @@ def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start
 def default_sent(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
     return text
 
-
 def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
-    TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     

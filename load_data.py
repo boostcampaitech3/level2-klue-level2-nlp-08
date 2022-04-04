@@ -34,7 +34,6 @@ class RE_Dataset(torch.utils.data.Dataset):
 
 def preprocessing_dataset(dataset, entity_tk_type):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
-  print(f"Preprocessing type : {entity_tk_type}\n")
   subject_entity = []
   object_entity = []
   sentence = []
@@ -51,24 +50,7 @@ def preprocessing_dataset(dataset, entity_tk_type):
     subj_type = subj[1:-1].split('\':')[4].replace("'", '').strip()
     obj_type = obj[1:-1].split('\':')[4].replace("'", '').strip()
 
-    if subj_type=='LOC':
-      subj_type = 'ORG'
-
     preprocessed_sent = getattr(utils, entity_tk_type)(sent, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    """
-    entity_tk_type
-    
-    add_entity_type_punct_star(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    add_entity_type_punct_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    def add_entity_type_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    def add_entity_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    def add_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    def default_sent(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
-    def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
-    """
-
 
     subject_entity.append(subj_word)
     object_entity.append(obj_word)
@@ -83,31 +65,6 @@ def preprocessing_dataset(dataset, entity_tk_type):
 def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
   pd_dataset = pd.read_csv(dataset_dir)
-  dataset = preprocessing_dataset(pd_dataset, 'special_token_sentence_with_type')
+  dataset = preprocessing_dataset(pd_dataset, entity_tk_type)
 
   return dataset
-
-def tokenized_dataset(dataset, tokenizer):
-  """ tokenizer에 따라 sentence를 tokenizing 합니다."""
-  # tokenizer.__call__
-  concat_entity = []
-
-  for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
-    #  = f'*{e01}[{e01_type}]* 와  + *{e02}[{e02_type}]* 의 관계를 구하시오.'
-    # temp2 = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
-    # temp = ''
-    # temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
-    concat_entity.append(temp)
-    
-  tokenized_sentences = tokenizer(
-      concat_entity,
-      list(dataset['sentence']),
-      return_tensors="pt",
-      padding=True,
-      truncation=True,
-      max_length=256,
-      add_special_tokens=True,
-      )
-  
-  return tokenized_sentences
