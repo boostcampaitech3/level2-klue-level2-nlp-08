@@ -13,7 +13,7 @@ from model import *
 import wandb
 import random
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit, train_test_split
-from torch.utils.data import Subset
+from torch.utils.data import Subset, DataLoader
 from custom_trainer import CustomTrainer
 
 def train(MODE="default", run_name="Not_Setting"):
@@ -22,12 +22,22 @@ def train(MODE="default", run_name="Not_Setting"):
   MODEL_NAME = "klue/roberta-large"
 
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  tokenizer.add_special_tokens({'additional_special_tokens': ['[SUB;ORG]', '[/SUB;ORG]',
+                                                              '[SUB;PER]', '[/SUB;PER]',
+                                                              '[OBJ;PER]', '[/OBJ;PER]',
+                                                              '[OBJ;LOC]', '[/OBJ;LOC]',
+                                                              '[OBJ;DAT]', '[/OBJ;ORG]',
+                                                              '[OBJ;ORG]', '[/OBJ;ORG]',
+                                                              '[OBJ;POH]', '[/OBJ;NOH]',
+                                                              '[OBJ;NOH]', '[/OBJ;NOH]',
+                                                              ]})
+
   # train_cv.py
   if MODE=="cv":
       num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[TP]', '[/TP]']})
   # TODO : [TP], [/TP] special token 추가할 경우
 
-  DATA_PATH = '../dataset/train/train.csv'
+  DATA_PATH = '../dataset/train/cleaned_train.csv'
   # TODO : train.csv 파일 경로
 
   # load dataset
@@ -36,26 +46,28 @@ def train(MODE="default", run_name="Not_Setting"):
   tokenized_train = tokenized_dataset(train_dataset, tokenizer)
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
 
-  valid = True
+  valid = False
   valid_size = 0.1
   if valid:
       RE_train_dataset, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
                                                      shuffle=True, stratify=train_dataset['label'])
   else:
-      RE_dev_dataset = RE_train_dataset
+      _, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
+                                                          shuffle=True, stratify=train_dataset['label'])
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   print(device)
   # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  model_config = AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
-  model_default = True
+
+  model_default = False
   if model_default:
       model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   else:
-      get_model(MODEL_NAME, tokenizer=tokenizer)
+      model = get_model(MODEL_NAME, tokenizer=tokenizer, dataset = RE_train_dataset)
   print(model.config)
   model.parameters
   model.to(device)
@@ -65,21 +77,30 @@ def train(MODE="default", run_name="Not_Setting"):
   output_dir = './results' # TODO : output_dir 설정
   label_smoothing_factor = 0.0 # TODO : label_smoothing factor
 
-  wandb.init(
-      project='KLUE',
-      entity='miml',
-      name=run_name
-  )
+  if valid:
+      report_to = 'wandb'
+      wandb.init(
+          project='KLUE',
+          entity='miml',
+          name=run_name
+      )
+  else:
+      wandb.init(
+          project='KLUE',
+          entity='violetto',
+          name=run_name
+      )
+      report_to = None
 
   training_args = TrainingArguments(
       output_dir=output_dir,  # output directory
-      save_total_limit=5,  # number of total save model.
-      save_steps=500,  # model saving step.
-      num_train_epochs=5,  # total number of training epochs
-      learning_rate=5e-5,  # learning_rate
+      save_total_limit=3,  # number of total save model.
+      save_steps=300,  # model saving step.
+      num_train_epochs=3,  # total number of training epochs
+      learning_rate=2e-5,  # learning_rate
       per_device_train_batch_size=32,  # batch size per device during training
       per_device_eval_batch_size=32,  # batch size for evaluation
-      warmup_steps=500,  # number of warmup steps for learning rate scheduler
+      warmup_steps=200,  # number of warmup steps for learning rate scheduler
       weight_decay=0.01,  # strength of weight decay
       logging_dir='./logs',  # directory for storing logs
       logging_steps=100,  # log saving step.
@@ -87,9 +108,9 @@ def train(MODE="default", run_name="Not_Setting"):
       # `no`: No evaluation during training.
       # `steps`: Evaluate every `eval_steps`.
       # `epoch`: Evaluate every end of epoch.
-      eval_steps=500,  # evaluation step.
+      eval_steps=300,  # evaluation step.
       load_best_model_at_end=True,
-      report_to="wandb",
+      report_to=report_to,
       fp16=True,
       fp16_opt_level="O1",
       label_smoothing_factor=label_smoothing_factor
@@ -98,11 +119,10 @@ def train(MODE="default", run_name="Not_Setting"):
   custom = False
   if custom:
       trainer = CustomTrainer(
-          loss_name='LabelSmoothing',
           model=model,  # the instantiated 🤗 Transformers model to be trained
           args=training_args,  # training arguments, defined above
           train_dataset=RE_train_dataset,  # training dataset
-          eval_dataset=RE_train_dataset,  # evaluation dataset
+          eval_dataset=RE_dev_dataset,  # evaluation dataset
           compute_metrics=compute_metrics  # define metrics function
       )
   else:
@@ -144,14 +164,15 @@ def train(MODE="default", run_name="Not_Setting"):
           # train model
           trainer.train()
           model.save_pretrained('./best_model/' + run_name + '_' + str(idx))
-
   else:
       trainer.train()
       model.save_pretrained('./best_model/' + run_name)
 
+  torch.save(model, './best_model/model.pt')
+
 def main():
   MODE = "default"
-  run_name = "default_Setting"
+  run_name = "Dongjin_concat_subobjwithtokentype"
 
   train(MODE=MODE, run_name=run_name)
 

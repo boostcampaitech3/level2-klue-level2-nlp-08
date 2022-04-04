@@ -65,8 +65,6 @@ def add_entity_type_token(text, subj_start, subj_end, subj_type, obj_start, obj_
     
     return new_text
 
-
-
 # [SUBJ]entity[/SUBJ]
 def add_entity_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
   subj_word = text[subj_start:subj_end + 1]
@@ -90,6 +88,36 @@ def add_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start,
     new_text = text[:obj_start] + f'[OBJ:{obj_type}]{obj_word}[/OBJ]' + text[obj_end+1:subj_start] + f'[SUBJ:{subj_type}]{subj_word}[/SUBJ]' + text[subj_end+1:]
   return new_text
 
+# [OBJ] entity [/OBJ]
+def special_token_sentence(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    concat_entity = []
+    sentence1: str
+    sentence2: str
+
+    if subj_start < obj_start:
+        sentence1 = text[:obj_start] + '[OBJ]' + text[obj_start:obj_end + 1] + '[/OBJ]' + text[obj_end + 1:]
+        new_text = sentence1[:subj_start] + '[SUB]' + sentence1[subj_start:subj_end + 1] + '[/SUB]' + sentence1[subj_end + 1:]
+
+    else:
+        sentence1 = text[:subj_start] + '[SUB]' + text[subj_start:subj_end + 1] + '[/SUB]' + text[subj_end + 1:]
+        new_text = sentence1[:obj_start] + '[OBJ]' + sentence1[obj_start:obj_end + 1] + '[/OBJ]' + sentence1[obj_end + 1:]
+    return new_text
+
+def special_token_sentence_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    concat_entity = []
+    sentence1: str
+    sentence2: str
+
+    if subj_start < obj_start:
+        sentence1 = text[:obj_start] + f'[OBJ;{obj_type}]' + text[obj_start:obj_end + 1] + f'[/OBJ;{obj_type}]' + text[obj_end + 1:]
+        new_text = sentence1[:subj_start] + f'[SUB;{subj_type}]' + sentence1[subj_start:subj_end + 1] + f'[/SUB;{subj_type}]' + sentence1[
+                                                                                                      subj_end + 1:]
+
+    else:
+        sentence1 = text[:subj_start] + f'[SUB;{subj_type}]' + text[subj_start:subj_end + 1] + f'[/SUB;{subj_type}]' + text[subj_end + 1:]
+        new_text = sentence1[:obj_start] + f'[OBJ;{obj_type}]' + sentence1[obj_start:obj_end + 1] + f'[/OBJ;{obj_type}]' + sentence1[
+                                                                                                   obj_end + 1:]
+    return new_text
 
 # entity --> [SUBJ:type]
 def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):    

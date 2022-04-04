@@ -11,22 +11,25 @@ import argparse
 from tqdm import tqdm
 from collections import Counter
 
+from model import MyRobertaForSequenceClassification, get_model
+
+
 def inference(model, tokenized_sent, device):
   """
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
   """
-  dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
+  dataloader = DataLoader(tokenized_sent, batch_size=32, shuffle=False)
+  model.to(device)
   model.eval()
   output_pred = []
   output_prob = []
   for i, data in enumerate(tqdm(dataloader)):
     with torch.no_grad():
-      outputs = model(
-          input_ids=data['input_ids'].to(device),
-          attention_mask=data['attention_mask'].to(device),
-          token_type_ids=data['token_type_ids'].to(device)
-          )
+      print(data['OBJ'])
+      outputs = model(input_ids = data['input_ids'].to(device), token_type_ids=data['token_type_ids'].to(device),
+                      OBJ = data['OBJ'].to(device),
+                      SUB = data['SUB'].to(device))
     logits = outputs[0]
     prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
     logits = logits.detach().cpu().numpy()
@@ -68,6 +71,15 @@ def main(args, MODE:str = "default"):
   # load tokenizer
   Tokenizer_NAME = "klue/roberta-large"
   tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+  tokenizer.add_special_tokens({'additional_special_tokens': ['[SUB;ORG]', '[/SUB;ORG]',
+                                                              '[SUB;PER]', '[/SUB;PER]',
+                                                              '[OBJ;PER]', '[/OBJ;PER]',
+                                                              '[OBJ;LOC]', '[/OBJ;LOC]',
+                                                              '[OBJ;DAT]', '[/OBJ;ORG]',
+                                                              '[OBJ;ORG]', '[/OBJ;ORG]',
+                                                              '[OBJ;POH]', '[/OBJ;NOH]',
+                                                              '[OBJ;NOH]', '[/OBJ;NOH]',
+                                                              ]})
 
   ## load test dataset
   test_dataset_dir = "../dataset/test/test_data.csv"
@@ -79,7 +91,9 @@ def main(args, MODE:str = "default"):
   if MODE=="default":
     ## load my model
     MODEL_NAME = args.model_dir # model dir.
-    model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+    model.resize_token_embeddings(len(tokenizer))
+
     model.parameters
     model.to(device)
     print(model.get_input_embeddings())
@@ -87,6 +101,11 @@ def main(args, MODE:str = "default"):
     ## predict answer
     pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
     pred_answer = num_to_label(pred_answer) # 숫자로 된 class를 원래 문자열 라벨로 변환.
+
+  elif MODE=="my":
+    model = torch.load('./best_model/model.pt')
+    pred_answer, output_prob = inference(model, Re_test_dataset, device)  # model에서 class 추론
+    pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
   else:
     if args.ensemble==False:
@@ -127,10 +146,10 @@ def main(args, MODE:str = "default"):
   print('---- Finish! ----')
 
 if __name__ == '__main__':
-  MODE = "default"
+  MODE = "my"
 
   parser = argparse.ArgumentParser()
-  run_time = "Not_Setting"
+  run_time = "Dongjin_concat_subobj_kaiming"
   # model dir
   if MODE == "bolim":
     parser.add_argument('--ensemble', type=bool, default=False)

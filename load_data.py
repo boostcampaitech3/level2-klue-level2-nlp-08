@@ -12,6 +12,21 @@ class RE_Dataset(torch.utils.data.Dataset):
   def __getitem__(self, idx):
     item = {key: val[idx].clone().detach() for key, val in self.pair_dataset.items()}
     item['labels'] = torch.tensor(self.labels[idx])
+    ids = item['input_ids']
+
+    index = (ids >= 32000).nonzero(as_tuple=True)
+
+    print(index)
+    cri = index[0][0]
+    other = index[0][2]
+
+    if ids[cri] <= 32002:
+      item['SUB'] = int(cri)
+      item['OBJ'] = int(other)
+    else:
+      item['OBJ'] = int(cri)
+      item['SUB'] = int(other)
+
     return item
 
   def __len__(self):
@@ -33,6 +48,9 @@ def preprocessing_dataset(dataset, entity_tk_type):
     obj_end = int(obj.split('\':')[3].split(',')[0])
     subj_type = subj[1:-1].split('\':')[4].replace("'", '').strip()
     obj_type = obj[1:-1].split('\':')[4].replace("'", '').strip()
+
+    if subj_type=='LOC':
+      subj_type = 'ORG'
 
     preprocessed_sent = getattr(utils, entity_tk_type)(sent, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type)
     """
@@ -58,19 +76,18 @@ def preprocessing_dataset(dataset, entity_tk_type):
 def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
   pd_dataset = pd.read_csv(dataset_dir)
-  dataset = preprocessing_dataset(pd_dataset, entity_tk_type)
-  
+  dataset = preprocessing_dataset(pd_dataset, 'special_token_sentence_with_type')
+
   return dataset
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   # tokenizer.__call__
-
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    # temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
-    temp = ''
-    temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
+    temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
+    # temp = ''
+    # temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
     concat_entity.append(temp)
     
   tokenized_sentences = tokenizer(
