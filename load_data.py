@@ -22,15 +22,14 @@ class RE_Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
 
-
 def preprocessing_dataset(dataset):
     """처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
     subject_entity = []
     object_entity = []
     sentence = []
-    for i, j, k in zip(
-        dataset["subject_entity"], dataset["object_entity"], dataset["sentence"]
-    ):
+    subject_type = []
+    object_type = []
+    for i, j, k in zip(dataset["subject_entity"], dataset["object_entity"], dataset["sentence"]):
         i_word = i[1:-1].split("', ")[0].split(":")[1].replace("'", "").strip()
         j_word = j[1:-1].split("', ")[0].split(":")[1].replace("'", "").strip()
 
@@ -41,24 +40,25 @@ def preprocessing_dataset(dataset):
         i_type = i[1:-1].split("':")[4].replace("'", "").strip()
         j_type = j[1:-1].split("':")[4].replace("'", "").strip()
 
-        sent = entity_marker2(
-            k, i_start, i_end, i_type, j_start, j_end, j_type
-        )  # from utils.py
+        sent = entity_marker(k, i_start, i_end, i_type, j_start, j_end, j_type)  # from entity_markers.py
 
         subject_entity.append(i_word)
         object_entity.append(j_word)
         sentence.append(sent)
+        subject_type.append(i_type)
+        object_type.append(j_type)
     out_dataset = pd.DataFrame(
         {
             "id": dataset["id"],
             "sentence": sentence,
             "subject_entity": subject_entity,
+            "subject_type": subject_type,
             "object_entity": object_entity,
+            "object_type": object_type,
             "label": dataset["label"],
         }
     )
     return out_dataset
-
 
 def load_data(dataset_dir):
     """csv 파일을 경로에 맡게 불러 옵니다."""
