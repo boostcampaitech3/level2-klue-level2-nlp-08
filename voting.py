@@ -22,9 +22,6 @@ def num_to_label(label):
     return origin_label
 
 
-
-exp_name = 'ensemble'
-
 # 결과 csv 경로 예시 : f'./prediction/ensemble/{num}.csv' (1 <= num <= args.ensemble_num)
 
 def main(args):
@@ -33,7 +30,7 @@ def main(args):
     output_prob_list = []
     test_id = []
     for i in range(1,args.ensemble_num +1):
-        SUB_CSV = args.submission_dir + '/' + str(i) + '.csv'  # csv dir.
+        SUB_CSV = args.submission_dir + str(i) + '.csv'  # csv dir.
         test_ensemble = pd.read_csv(SUB_CSV)
         temp_pred_answer, temp_output_prob = list(test_ensemble["pred_label"]), list(test_ensemble["probs"])
         pred_answer_list.append(temp_pred_answer)
@@ -65,7 +62,7 @@ def main(args):
 
         pred_answer = num_to_label(pred_answer)
 
-## make csv file with predicted answer
+    ## make csv file with predicted answer
     #########################################################
     # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
     output = pd.DataFrame(
@@ -77,7 +74,7 @@ def main(args):
     )
 
     output.to_csv(
-        f"./prediction/{exp_name}.csv", index=False
+        f"{args.submission_dir}{args.submission_name}.csv", index=False
     )  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
     #### 필수!! ##############################################
     print("---- Finish! ----")
@@ -88,9 +85,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # model dir
-    parser.add_argument("--submission_dir", type=str, default=f"./prediction/{exp_name}")
+    # default : "./prediction/ensemble/{num}.csv" 경로에 num번째 앙상블할 csv파일 존재 / "./prediction/ensemble/result.csv" 경로에 최종 csv 저장
+    parser.add_argument("--submission_dir", type=str, default=f"./prediction/ensemble/")
+    parser.add_argument("--submission_name", type=str, default="result")
     parser.add_argument('--ensemble_num', type=int, default=3)
-    parser.add_argument("--ensemble", type=str, default=True)
     parser.add_argument("--ensemble_type", type=str, default="hard")
     args = parser.parse_args()
     print(args)
