@@ -67,23 +67,29 @@ def load_data(dataset_dir):
 
     return dataset
 
+TYPE = {"ORG": "단체", "PER": "사람", "DAT": "날짜", "LOC": "위치", "POH": "기타", "NOH": "수량"}
 
 def tokenized_dataset(dataset, tokenizer):
     """tokenizer에 따라 sentence를 tokenizing 합니다."""
-    # user_defined_symbols = ['[E1]', '[/E1]', '[E2]', '[/E2]']
-    # special_tokens_dict = {'additional_special_tokens': user_defined_symbols}
-    # tokenizer.add_special_tokens(special_tokens_dict)
     concat_entity = []
-    for e01, e02 in zip(dataset["subject_entity"], dataset["object_entity"]):
-        temp = f"이 문장에서 @{e01}@과 #{e02}#은 어떤 관계일까?"  # multi 방식 사용
+    for e01, e02, t01, t02 in zip(
+        dataset["subject_entity"],
+        dataset["object_entity"],
+        dataset["subject_type"],
+        dataset["object_type"],
+    ):
+        temp = ""
+        # temp = f"이 문장에서 @{e01}@과 #{e02}#은 어떤 관계일까?"  # 
+        temp = f"이 문장에서 [{e02}]은 [{e01}]의 [{TYPE[t02]}]이다."    # 현재 최고점 temp
         concat_entity.append(temp)
-        tokenized_sentences = tokenizer(
-            list(dataset["sentence"]),
-            concat_entity,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=256,
-            add_special_tokens=True,
-        )
+    tokenized_sentences = tokenizer(
+        concat_entity,
+        list(dataset["sentence"]),
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=256,
+        add_special_tokens=True,
+    )
     return tokenized_sentences
+
