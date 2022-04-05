@@ -15,7 +15,7 @@ import pickle as pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
-
+from utils import *
 
 def inference(model, tokenized_sent, device):
     """
@@ -76,6 +76,8 @@ def main(args):
     """
     주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
     """
+    # set seed
+    seed_everything(args.seed)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # load tokenizer
@@ -130,8 +132,8 @@ def main(args):
             pred_answer = num_to_label(pred_answer)
     else:
         ## load my model
-        MODEL_NAME = args.model_dir  # model dir.
-        model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+        MODEL_NAME = args.model_dir + '/' + args.model # model dir.
+        model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
         model.parameters
         model.to(device)
 
@@ -163,10 +165,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # model dir
+    parser.add_argument("--model", type=str, default=f"1st-noamp-concat2")
     parser.add_argument("--model_dir", type=str, default=f"./best_model/model_dir")
     parser.add_argument("--ensemble", type=str, default=True)
     parser.add_argument("--voting", type=str, default="soft")
     parser.add_argument("--ensemble_num", type=int, default=3)
+    parser.add_argument('--seed', type=int, default=1004)
     args = parser.parse_args()
     print(args)
     main(args)

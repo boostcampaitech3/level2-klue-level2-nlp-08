@@ -8,6 +8,7 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 import gc
+from utils import *
 
 def num_to_label(label):
     """
@@ -25,6 +26,8 @@ def num_to_label(label):
 # 결과 csv 경로 예시 : f'./prediction/ensemble/{num}.csv' (1 <= num <= args.ensemble_num)
 
 def main(args):
+    # set seed
+    seed_everything(args.seed)
     ## predict answer
     pred_answer_list = []
     output_prob_list = []
