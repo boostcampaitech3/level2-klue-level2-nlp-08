@@ -21,6 +21,7 @@ from load_data import *
 from torch.utils.data import Subset
 import gc
 import argparse
+from utils import *
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -178,6 +179,68 @@ def train(pargs):
             # train model
             trainer.train()
             model.save_pretrained("./best_model/" + pargs.trial_name + "_" + str(idx))
+    elif pargs.check:
+        # setting model hyperparameter
+        model_config = AutoConfig.from_pretrained(MODEL_NAME)
+        model_config.num_labels = 30
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            MODEL_NAME, config=model_config
+        )
+        print(model.config)
+        model.parameters
+        model.to(device)
+
+        # 사용한 option 외에도 다양한 option들이 있습니다.
+        # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
+        training_args = TrainingArguments(
+            output_dir="./results",  # output directory
+            save_total_limit=5=pargs.checkpoint_limit,  # number of total save model.
+            save_steps=500,  # model saving step.
+            num_train_epochs=pargs.epoch,  # total number of training epochs
+            learning_rate=2e-5,  # learning_rate
+            per_device_train_batch_size=pargs.batch,  # batch size per device during training
+            per_device_eval_batch_size=pargs.batch,  # batch size for evaluation
+            warmup_steps=400,  # number of warmup steps for learning rate scheduler
+            weight_decay=0.01,  # strength of weight decay
+            logging_dir="./logs",  # directory for storing logs
+            logging_steps=100,  # log saving step.
+            evaluation_strategy="steps",  # evaluation strategy to adopt during training
+            report_to="wandb",
+            fp16=pargs.fp16,
+            fp16_opt_level="O1",
+            eval_steps=500,  # evaluation step.
+            # load_best_model_at_end=True,
+        )
+        trainer = Trainer(
+            model=model,  # the instantiated 🤗 Transformers model to be trained
+            args=training_args,  # training arguments, defined above
+            train_dataset=RE_train_dataset,  # training dataset
+            eval_dataset=RE_train_dataset,  # evaluation dataset
+            compute_metrics=compute_metrics,  # define metrics function
+        )
+
+        # train model
+        trainer.train()
+
+        path="./results/" + pargs.trial_name
+        checkpoints = search(path)
+
+        model = []
+        for checkpoint in checkpoints:
+            model.append(AutoModelForSequenceClassification.from_pretrained(path + '/' + checkpoint))
+
+        # 모델의 state_dict 가중치 평균 구하기
+        # 1. 가중치 누적합
+        for i in range(1,len(model)):
+            for param_tensor in model[i].state_dict():
+                model[0].state_dict()[param_tensor] += model[i].state_dict()[param_tensor]
+        # 2. 가중치 평균
+        for param_tensor in model[0].state_dict():
+            model[0].state_dict()[param_tensor] /= len(model)
+
+        weighted_model = model[0]
+        weighted_model.save_pretrained(f"./best_model/{pargs.trial_name}")
     else:
         # setting model hyperparameter
         model_config = AutoConfig.from_pretrained(MODEL_NAME)
@@ -241,6 +304,8 @@ if __name__ == "__main__":
     parser.add_argument("--epoch", type=int, default=3)
     parser.add_argument("--batch", type=int, default=32)
     parser.add_argument("--fp16", type=bool, default=False)
+    parser.add_argument("--check", type=bool, default=False)
+    parser.add_argument("--checkpoint_limit", type=int, default=3)
     parser.add_argument("--ensemble", type=bool, default=True)
     parser.add_argument("--ensemble_num", type=int, default=3)
     parser.add_argument("--ensemble_test_size", type=float, default=0.1)

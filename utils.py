@@ -1,3 +1,5 @@
+import os
+
 def entity_marker1(text, i_start, i_end, i_type,j_start, j_end, j_type):
     new_text = ''
     TYPE = {'ORG':'단체','PER':'사람','DAT':'날짜','LOC':'위치','POH':'기타','NOH':'수량'}
@@ -55,3 +57,11 @@ def entity_marker(text, i_start, i_end, i_type, j_start, j_end, j_type):
                 text[j_end + 1:i_start] + '#' + '^' + TYPE[i_type] + '^' + text[i_start:i_end + 1] + '#' + text[i_end + 1:]
     return new_text
 
+# finding dir name
+def search(dirname):
+    checkpoints = []
+    filedirs = os.listdir(dirname)
+    for filedir in filedirs:
+        if "checkpoint" in filedir:
+            checkpoints.append(filedir)
+    return checkpoints
