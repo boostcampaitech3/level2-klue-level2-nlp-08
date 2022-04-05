@@ -124,7 +124,7 @@ def train(pargs):
 
     print(device)
     
-    if pargs.ensemble:
+    if pargs.method=="ensemble":
         idx = 0
         train_val_split = StratifiedShuffleSplit(n_splits=pargs.ensemble_num, test_size=pargs.ensemble_test_size, random_state=pargs.seed)
         for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
@@ -179,7 +179,7 @@ def train(pargs):
             # train model
             trainer.train()
             model.save_pretrained("./best_model/" + pargs.trial_name + "_" + str(idx))
-    elif pargs.check:
+    elif pargs.method=="check":
         # setting model hyperparameter
         model_config = AutoConfig.from_pretrained(MODEL_NAME)
         model_config.num_labels = 30
@@ -257,7 +257,7 @@ def train(pargs):
         # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
         training_args = TrainingArguments(
             output_dir="./results",  # output directory
-            save_total_limit=5,  # number of total save model.
+            save_total_limit=pargs.checkpoint_limit,  # number of total save model.
             save_steps=500,  # model saving step.
             num_train_epochs=pargs.epoch,  # total number of training epochs
             learning_rate=2e-5,  # learning_rate
@@ -304,9 +304,8 @@ if __name__ == "__main__":
     parser.add_argument("--epoch", type=int, default=3)
     parser.add_argument("--batch", type=int, default=32)
     parser.add_argument("--fp16", type=bool, default=False)
-    parser.add_argument("--check", type=bool, default=False)
+    parser.add_argument("--method", type=str, default="ensemble")  # "none", "check"
     parser.add_argument("--checkpoint_limit", type=int, default=3)
-    parser.add_argument("--ensemble", type=bool, default=True)
     parser.add_argument("--ensemble_num", type=int, default=3)
     parser.add_argument("--ensemble_test_size", type=float, default=0.1)
     parser.add_argument("--model", type=str, default="klue/roberta-large")
