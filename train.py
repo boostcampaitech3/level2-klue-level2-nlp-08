@@ -1,14 +1,38 @@
 import pickle as pickle
 import os
 import pandas as pd
-import torch
+import torch, wandb, random
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from sklearn.model_selection import StratifiedShuffleSplit
+from transformers import (
+    AutoTokenizer,
+    AutoConfig,
+    AutoModelForSequenceClassification,
+    Trainer,
+    TrainingArguments,
+    RobertaConfig,
+    RobertaTokenizer,
+    RobertaForSequenceClassification,
+    BertTokenizer,
+)
 from load_data import *
+from torch.utils.data import Subset
+import gc
+import argparse
+
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
 
 
+# fmt: off
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
     label_list = ['no_relation', 'org:top_members/employees', 'org:members',
@@ -27,6 +51,7 @@ def klue_re_micro_f1(preds, labels):
     label_indices.remove(no_relation_label_idx)
     return sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
 
+# fmt: on
 def klue_re_auprc(probs, labels):
     """KLUE-RE AUPRC (with no_relation)"""
     labels = np.eye(30)[labels]
@@ -35,104 +60,193 @@ def klue_re_auprc(probs, labels):
     for c in range(30):
         targets_c = labels.take([c], axis=1).ravel()
         preds_c = probs.take([c], axis=1).ravel()
-        precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
+        precision, recall, _ = sklearn.metrics.precision_recall_curve(
+            targets_c, preds_c
+        )
         score[c] = sklearn.metrics.auc(recall, precision)
     return np.average(score) * 100.0
 
+
 def compute_metrics(pred):
-  """ validation을 위한 metrics function """
-  labels = pred.label_ids
-  preds = pred.predictions.argmax(-1)
-  probs = pred.predictions
+    """validation을 위한 metrics function"""
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    probs = pred.predictions
 
-  # calculate accuracy using sklearn's function
-  f1 = klue_re_micro_f1(preds, labels)
-  auprc = klue_re_auprc(probs, labels)
-  acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
+    # calculate accuracy using sklearn's function
+    f1 = klue_re_micro_f1(preds, labels)
+    auprc = klue_re_auprc(probs, labels)
+    acc = accuracy_score(labels, preds)  # 리더보드 평가에는 포함되지 않습니다.
 
-  return {
-      'micro f1 score': f1,
-      'auprc' : auprc,
-      'accuracy': acc,
-  }
+    return {
+        "micro f1 score": f1,
+        "auprc": auprc,
+        "accuracy": acc,
+    }
+
 
 def label_to_num(label):
-  num_label = []
-  with open('dict_label_to_num.pkl', 'rb') as f:
-    dict_label_to_num = pickle.load(f)
-  for v in label:
-    num_label.append(dict_label_to_num[v])
-  
-  return num_label
+    num_label = []
+    with open("dict_label_to_num.pkl", "rb") as f:
+        dict_label_to_num = pickle.load(f)
+    for v in label:
+        num_label.append(dict_label_to_num[v])
 
-def train():
-  # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  MODEL_NAME = "klue/bert-base"
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    return num_label
 
-  # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
-  # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
 
-  train_label = label_to_num(train_dataset['label'].values)
-  # dev_label = label_to_num(dev_dataset['label'].values)
+def train(pargs):
+    # set seed
+    seed_everything(pargs.seed)
+    
+    # load model and tokenizer
+    # MODEL_NAME = "bert-base-uncased"
+    MODEL_NAME = pargs.model
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
-  # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+    # load dataset
+    train_dataset = load_data("../dataset/train/new_train.csv")
+    # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
 
-  # make dataset for pytorch.
-  RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-  # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+    train_label = label_to_num(train_dataset["label"].values)
+    # dev_label = label_to_num(dev_dataset['label'].values)
 
-  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # tokenizing dataset
+    tokenized_train = tokenized_dataset(train_dataset, tokenizer)
+    # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
 
-  print(device)
-  # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = 30
+    # make dataset for pytorch.
+    RE_train_dataset = RE_Dataset(tokenized_train, train_label)
+    # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  model.resize_token_embeddings(tokenizer.vocab_size + 12) # special tokens 추가에 따른 model resize
-  print(model.config)
-  model.parameters
-  model.to(device)
-  
-  # 사용한 option 외에도 다양한 option들이 있습니다.
-  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
-  training_args = TrainingArguments(
-    output_dir='./results',          # output directory
-    save_total_limit=5,              # number of total save model.
-    save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=16,  # batch size per device during training
-    per_device_eval_batch_size=16,   # batch size for evaluation
-    warmup_steps=500,                # number of warmup steps for learning rate scheduler
-    weight_decay=0.01,               # strength of weight decay
-    logging_dir='./logs',            # directory for storing logs
-    logging_steps=100,              # log saving step.
-    evaluation_strategy='steps', # evaluation strategy to adopt during training
-                                # `no`: No evaluation during training.
-                                # `steps`: Evaluate every `eval_steps`.
-                                # `epoch`: Evaluate every end of epoch.
-    eval_steps = 500,            # evaluation step.
-    load_best_model_at_end = True 
-  )
-  trainer = Trainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
-    args=training_args,                  # training arguments, defined above
-    train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_train_dataset,             # evaluation dataset
-    compute_metrics=compute_metrics         # define metrics function
-  )
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-  # train model
-  trainer.train()
-  model.save_pretrained('./best_model')
-def main():
-  train()
+    print(device)
+    
+    if pargs.ensemble:
+        idx = 0
+        train_val_split = StratifiedShuffleSplit(n_splits=pargs.ensemble_num, test_size=pargs.ensemble_test_size, random_state=pargs.seed)
+        for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
+            idx += 1
+            # setting model hyperparameter
+            model_config = AutoConfig.from_pretrained(MODEL_NAME)
+            model_config.num_labels = 30
 
-if __name__ == '__main__':
-  main()
+            model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+            # model.resize_token_embeddings(tokenizer.vocab_size)    # 스페셜 토큰 추가 시 활성화
+            print(model.config)
+            model.parameters
+            model.to(device)
+
+            # 사용한 option 외에도 다양한 option들이 있습니다.
+            # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
+            training_args = TrainingArguments(
+                output_dir=f"./results/{pargs.trial_name}",  # output directory
+                save_total_limit=3,  # number of total save model.
+                save_steps=500,  # model saving step.
+                num_train_epochs=pargs.epoch,  # total number of training epochs
+                learning_rate=2e-5,  # learning_rate
+                per_device_train_batch_size=pargs.batch,  # batch size per device during training
+                per_device_eval_batch_size=pargs.batch,  # batch size for evaluation
+                warmup_steps=400,  # number of warmup steps for learning rate scheduler
+                weight_decay=0.01,  # strength of weight decay
+                logging_dir="./logs",  # directory for storing logs
+                logging_steps=100,  # log saving step.
+                evaluation_strategy="steps",  # evaluation strategy to adopt during training
+                # `no`: No evaluation during training.
+                # `steps`: Evaluate every `eval_steps`.
+                # `epoch`: Evaluate every end of epoch.
+                eval_steps=500,  # evaluation step.
+                # load_best_model_at_end = True,
+                report_to="wandb",
+                fp16=pargs.fp16,
+                fp16_opt_level="O1",
+            )
+
+            train_data = Subset(RE_train_dataset, train_idx)
+            valid_data = Subset(RE_train_dataset, valid_idx)
+
+            trainer = Trainer(
+                model=model,  # the instantiated 🤗 Transformers model to be trained
+                args=training_args,  # training arguments, defined above
+                # train_dataset=RE_train_dataset,         # training dataset
+                train_dataset=train_data,
+                # eval_dataset=RE_train_dataset,             # evaluation dataset
+                eval_dataset=valid_data,
+                compute_metrics=compute_metrics,  # define metrics function
+            )
+            # train model
+            trainer.train()
+            model.save_pretrained("./best_model/" + pargs.trial_name + "_" + str(idx))
+    else:
+        # setting model hyperparameter
+        model_config = AutoConfig.from_pretrained(MODEL_NAME)
+        model_config.num_labels = 30
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            MODEL_NAME, config=model_config
+        )
+        print(model.config)
+        model.parameters
+        model.to(device)
+
+        # 사용한 option 외에도 다양한 option들이 있습니다.
+        # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
+        training_args = TrainingArguments(
+            output_dir="./results",  # output directory
+            save_total_limit=5,  # number of total save model.
+            save_steps=500,  # model saving step.
+            num_train_epochs=pargs.epoch,  # total number of training epochs
+            learning_rate=2e-5,  # learning_rate
+            per_device_train_batch_size=pargs.batch,  # batch size per device during training
+            per_device_eval_batch_size=pargs.batch,  # batch size for evaluation
+            warmup_steps=400,  # number of warmup steps for learning rate scheduler
+            weight_decay=0.01,  # strength of weight decay
+            logging_dir="./logs",  # directory for storing logs
+            logging_steps=100,  # log saving step.
+            evaluation_strategy="steps",  # evaluation strategy to adopt during training
+            report_to="wandb",
+            fp16=pargs.fp16,
+            fp16_opt_level="O1",
+            # `no`: No evaluation during training.
+            # `steps`: Evaluate every `eval_steps`.
+            # `epoch`: Evaluate every end of epoch.
+            eval_steps=500,  # evaluation step.
+            load_best_model_at_end=True,
+        )
+        trainer = Trainer(
+            model=model,  # the instantiated 🤗 Transformers model to be trained
+            args=training_args,  # training arguments, defined above
+            train_dataset=RE_train_dataset,  # training dataset
+            eval_dataset=RE_train_dataset,  # evaluation dataset
+            compute_metrics=compute_metrics,  # define metrics function
+        )
+
+        # train model
+        trainer.train()
+        model.save_pretrained(args)
+
+
+def main(pargs):
+    wandb.init(project="KLUE", entity="miml", name=pargs.user_name + "_" + pargs.trial_name)
+    train(pargs)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # model dir
+    parser.add_argument("--model_dir", type=str, default="./best_model")
+    parser.add_argument("--seed", type=int, default=1004)
+    parser.add_argument("--epoch", type=int, default=3)
+    parser.add_argument("--batch", type=int, default=32)
+    parser.add_argument("--fp16", type=bool, default=False)
+    parser.add_argument("--ensemble", type=bool, default=True)
+    parser.add_argument("--ensemble_num", type=int, default=3)
+    parser.add_argument("--ensemble_test_size", type=float, default=0.1)
+    parser.add_argument("--model", type=str, default="klue/roberta-large")
+    parser.add_argument("--user_name", type=str, default="noname") # for identifying user in wandb
+    parser.add_argument("--trial_name", type=str, default="new_trial")
+    pargs = parser.parse_args()
+    print(pargs)
+    main(pargs)
