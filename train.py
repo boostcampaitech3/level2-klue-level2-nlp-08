@@ -194,7 +194,7 @@ def train(pargs):
         # 사용한 option 외에도 다양한 option들이 있습니다.
         # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
         training_args = TrainingArguments(
-            output_dir="./results",  # output directory
+            output_dir=f"./results/{pargs.trial_name}",  # output directory
             save_total_limit=5=pargs.checkpoint_limit,  # number of total save model.
             save_steps=500,  # model saving step.
             num_train_epochs=pargs.epoch,  # total number of training epochs

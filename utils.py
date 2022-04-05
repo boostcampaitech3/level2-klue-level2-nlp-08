@@ -63,7 +63,7 @@ def search(dirname):
     checkpoints = []
     filedirs = os.listdir(dirname)
     for filedir in filedirs:
-        if "checkpoint" in filedir:
+        if "checkpoint-" in filedir: # checkpoint로 하면 ipynb_checkpoints 포함되어 오류 발생
             checkpoints.append(filedir)
     return checkpoints
 
