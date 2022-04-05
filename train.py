@@ -237,7 +237,7 @@ def train(pargs):
                 model[0].state_dict()[param_tensor] += model[i].state_dict()[param_tensor]
         # 2. 가중치 평균
         for param_tensor in model[0].state_dict():
-            model[0].state_dict()[param_tensor] /= len(model)
+            model[0].state_dict()[param_tensor] = (model[0].state_dict()[param_tensor]/len(model)).float()
 
         weighted_model = model[0]
         weighted_model.save_pretrained(f"./best_model/{pargs.trial_name}")
