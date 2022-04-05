@@ -40,7 +40,7 @@ def preprocessing_dataset(dataset):
         i_type = i[1:-1].split("':")[4].replace("'", "").strip()
         j_type = j[1:-1].split("':")[4].replace("'", "").strip()
 
-        sent = entity_marker(k, i_start, i_end, i_type, j_start, j_end, j_type)  # from entity_markers.py
+        sent = entity_marker(k, i_start, i_end, i_type, j_start, j_end, j_type)  # from utils.py
 
         subject_entity.append(i_word)
         object_entity.append(j_word)
