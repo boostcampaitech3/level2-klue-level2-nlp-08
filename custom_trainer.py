@@ -8,6 +8,30 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+class LDAMLoss(nn.Module):
+    def __init__(self, cls_num_list, max_m=0.5, weight=None, s=30):
+        super().__init__()
+        m_list = 1.0 / np.sqrt(np.sqrt(cls_num_list))
+        m_list = m_list * (max_m / np.max(m_list))
+        m_list = torch.cuda.FloatTensor(m_list)
+        self.m_list = m_list
+        assert s > 0
+        self.s = s
+        self.weight = weight
+
+    def forward(self, x, target):
+        index = torch.zeros_like(x, dtype=torch.bool)
+        index.scatter_(1, target.data.view(-1, 1), 1)
+
+        index_float = index.type(torch.cuda.FloatTensor)
+        batch_m = torch.matmul(self.m_list[None, :], index_float.transpose(0, 1))
+        batch_m = batch_m.view((-1, 1))
+        x_m = x - batch_m
+
+        output = torch.where(index, x_m, x)
+        return F.cross_entropy(
+            self.s * output.to("cuda"), target.to("cuda"), weight=self.weight.to("cuda")
+        )
 
 class FocalLoss(nn.Module):
     def __init__(self, weight=None,
@@ -58,6 +82,7 @@ class CustomTrainer(Trainer):
     def __init__(self, loss_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_name = loss_name
+        self.n_per_labels = self.train_dataset.get_n_per_labels()
 
     def compute_loss(self, model, inputs, return_outputs=False):
         """ Default Loss : CrossEntropyLoss (defined at RobertaForMaskedLM) """
@@ -69,6 +94,21 @@ class CustomTrainer(Trainer):
             custom_loss = FocalLoss()
         elif self.loss_name == 'f1':
             custom_loss = F1Loss()
+        elif self.loss_name == 'LDAMLoss':
+            betas = [0, 0.99]
+            beta_idx = self.state.epoch >= 2
+            n_per_labels = self.n_per_labels
+
+            effective_num = 1.0 - np.power(betas[beta_idx], n_per_labels)
+            cls_weights = (1.0 - betas[beta_idx]) / np.array(effective_num)
+            cls_weights = cls_weights / np.sum(cls_weights) * len(n_per_labels)
+            cls_weights = torch.FloatTensor(cls_weights)
+
+            custom_loss = LDAMLoss(
+                cls_num_list=n_per_labels, max_m=0.5, s=30, weight=cls_weights
+            )
+            if torch.cuda.is_available():
+                custom_loss.cuda()
         elif self.loss_name == 'LabelSmoothing':
             loss = self.label_smoother(outputs, labels)
         elif self.loss_name == 'CrossEntropy':

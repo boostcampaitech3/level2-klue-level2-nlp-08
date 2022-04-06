@@ -1,13 +1,15 @@
 import pandas as pd
 import torch
-
+from collections import Counter
 import utils
 
+TYPE = {"ORG": "단체", "PER": "사람", "DAT": "날짜", "LOC": "위치", "POH": "기타", "NOH": "수량"}
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
   def __init__(self, pair_dataset, labels):
     self.pair_dataset = pair_dataset
     self.labels = labels
+    self.label_counter = self._get_label_counter()
 
   def __getitem__(self, idx):
     item = {key: val[idx].clone().detach() for key, val in self.pair_dataset.items()}
@@ -16,6 +18,13 @@ class RE_Dataset(torch.utils.data.Dataset):
 
   def __len__(self):
     return len(self.labels)
+
+  def get_n_per_labels(self):
+      return [self.label_counter[i] for i in range(30)]
+
+  def _get_label_counter(self):
+      label_counter = Counter(self.labels)
+      return label_counter
 
 def preprocessing_dataset(dataset, entity_tk_type):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
@@ -77,7 +86,8 @@ def tokenized_dataset(dataset, tokenizer):
   for e01, e02, e01_type, e02_type in zip(dataset['subject_entity'], dataset['object_entity'],dataset['subject_entity_type'],dataset['object_entity_type']):
     temp1 = f'*{e01}[{e01_type}]* 와  + *{e02}[{e02_type}]* 의 관계를 구하시오.'
     temp2 = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
-    concat_entity.append(temp2)
+    temp3 = f"이 문장에서 [{e02}]은 [{TYPE[e01_type]}]인 [{e01}]의 [{TYPE[e02_type]}]이다."    # 현재 최고점 temp
+    concat_entity.append(temp3)
     
   tokenized_sentences = tokenizer(
       concat_entity,

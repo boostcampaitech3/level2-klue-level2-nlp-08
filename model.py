@@ -2,6 +2,7 @@ import torch.nn as nn
 from transformers import RobertaModel, RobertaPreTrainedModel, AutoConfig, AutoModelForSequenceClassification
 import torch
 import torch.nn.init as init
+import torch.nn.functional as F
 
 def get_model(MODEL_NAME, tokenizer):
     model_config = AutoConfig.from_pretrained(MODEL_NAME)

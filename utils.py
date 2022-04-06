@@ -2,6 +2,7 @@ from konlpy.tag import Mecab
 import torch
 import numpy as np
 import random
+
 TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
 def seed_everything(seed):
     torch.manual_seed(seed)

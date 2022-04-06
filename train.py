@@ -29,7 +29,7 @@ def train(MODE="default", run_name="NoSetting"):
   valid_size = 0.1
 
   # custom Trainer
-  custom = False
+  custom = True
 
   # model modification
   model_default = True
@@ -88,13 +88,14 @@ def train(MODE="default", run_name="NoSetting"):
 
   training_args = TrainingArguments(
       output_dir=output_dir,  # output directory
-      save_total_limit=5,  # number of total save model.
-      save_steps=500,  # model saving step.
-      num_train_epochs=1,  # total number of training epochs
-      learning_rate=5e-5,  # learning_rate
-      per_device_train_batch_size=32,  # batch size per device during training
-      per_device_eval_batch_size=32,  # batch size for evaluation
-      warmup_steps=500,  # number of warmup steps for learning rate scheduler
+      save_total_limit=3,  # number of total save model.
+      save_steps=1000,  # model saving step.
+      num_train_epochs=4,  # total number of training epochs
+      learning_rate=2e-5,  # learning_rate
+      per_device_train_batch_size=16,  # batch size per device during training
+      per_device_eval_batch_size=16,  # batch size for evaluation
+      lr_scheduler_type='cosine', #SchedulerType LINEAR, COSINE, POLYNOMIAL...,
+      warmup_steps=300,  # number of warmup steps for learning rate scheduler
       weight_decay=0.01,  # strength of weight decay
       logging_dir='./logs',  # directory for storing logs
       logging_steps=100,  # log saving step.
@@ -103,6 +104,7 @@ def train(MODE="default", run_name="NoSetting"):
       # `steps`: Evaluate every `eval_steps`.
       # `epoch`: Evaluate every end of epoch.
       eval_steps=500,  # evaluation step.
+      metric_for_best_model="micro f1 score",
       load_best_model_at_end=True,
       report_to="wandb",
       fp16=True,
@@ -129,9 +131,9 @@ def train(MODE="default", run_name="NoSetting"):
       )
 
   # Hard Voting Ensemble
-
+  torch.cuda.empty_cache()
   if ensemble:
-      train_val_split = StratifiedShuffleSplit(n_splits=3, test_size=0.1, random_state=1004)
+      train_val_split = StratifiedKFold(n_splits=3, shuffle=True, random_state=1004)
       idx = 0
       for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
           idx += 1
@@ -144,17 +146,30 @@ def train(MODE="default", run_name="NoSetting"):
           print(model.config)
           model.parameters
           model.to(device)
+          train_subset = Subset(RE_train_dataset, train_idx)
+          valid_subset = Subset(RE_train_dataset, valid_idx)
+          # print(type(tokenized_train), tokenized_train)
+          # print(type(train_subset.dataset),train_subset.dataset)
+          # RE_train_dataset = RE_Dataset(train_subset.dataset.items(), train_subset.indices.items())
+          # RE_valid_dataset = RE_Dataset(valid_subset.dataset.items(), valid_subset.indices.items())
 
-          train_data = Subset(RE_train_dataset, train_idx)
-          valid_data = Subset(RE_train_dataset, valid_idx)
-
-          trainer = Trainer(
-              model=model,  # the instantiated 🤗 Transformers model to be trained
-              args=training_args,  # training arguments, defined above
-              train_dataset=train_data,
-              eval_dataset=valid_data,
-              compute_metrics=compute_metrics  # define metrics function
-          )
+          if custom:
+              trainer = CustomTrainer(
+                  loss_name='LDAMLoss',
+                  model=model,  # the instantiated 🤗 Transformers model to be trained
+                  args=training_args,  # training arguments, defined above
+                  train_dataset=train_subset.dataset,  # training dataset
+                  eval_dataset=valid_subset.dataset,  # evaluation dataset
+                  compute_metrics=compute_metrics  # define metrics function
+              )
+          else:
+              trainer = Trainer(
+                  model=model,  # the instantiated 🤗 Transformers model to be trained
+                  args=training_args,  # training arguments, defined above
+                  train_dataset=train_subset,  # training dataset
+                  eval_dataset=valid_subset,  # evaluation dataset
+                  compute_metrics=compute_metrics  # define metrics function
+              )
           # train model
           trainer.train()
           model.save_pretrained('./best_model/' + run_name + '_' + str(idx))
@@ -165,7 +180,7 @@ def train(MODE="default", run_name="NoSetting"):
 
 def main():
   MODE = "default"
-  run_name = "test_bolim"
+  run_name = "bolim_LDAMloss_ep4"
 
   train(MODE=MODE, run_name=run_name)
 
