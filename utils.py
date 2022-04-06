@@ -67,6 +67,15 @@ def search(dirname):
             checkpoints.append(filedir)
     return checkpoints
 
+# finding csv name
+def search_csv(dirname):
+    csv = []
+    filedirs = os.listdir(dirname)
+    for file in filedirs:
+        if ".csv" in file:
+            csv.append(file)
+    return csv
+
 # set seed
 def seed_everything(seed):
     torch.manual_seed(seed)
