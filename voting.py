@@ -10,6 +10,15 @@ from tqdm import tqdm
 import gc
 from utils import *
 
+def label_to_num(label):
+    num_label = []
+    with open("dict_label_to_num.pkl", "rb") as f:
+        dict_label_to_num = pickle.load(f)
+    for v in label:
+        num_label.append(dict_label_to_num[v])
+
+    return num_label
+
 def num_to_label(label):
     """
     숫자로 되어 있던 class를 원본 문자열 라벨로 변환 합니다.
@@ -22,44 +31,44 @@ def num_to_label(label):
 
     return origin_label
 
-
-# 결과 csv 경로 예시 : f'./prediction/ensemble/{num}.csv' (1 <= num <= args.ensemble_num)
-
 def main(args):
     # set seed
     seed_everything(args.seed)
+    
     ## predict answer
     pred_answer_list = []
     output_prob_list = []
     test_id = []
-    for i in range(1,args.ensemble_num +1):
-        SUB_CSV = args.submission_dir + str(i) + '.csv'  # csv dir.
-        test_ensemble = pd.read_csv(SUB_CSV)
+    pred_answer = []
+    output_prob = []
+    csv_dir = search_csv(args.submission_dir)
+    paths = [args.submission_dir+i for i in csv_dir]
+    length = len(paths)
+    for path in paths:
+        test_ensemble = pd.read_csv(path)
         temp_pred_answer, temp_output_prob = list(test_ensemble["pred_label"]), list(test_ensemble["probs"])
+        temp_pred_answer = label_to_num(temp_pred_answer)
         pred_answer_list.append(temp_pred_answer)
         output_prob_list.append(temp_output_prob)
     test_id = list(range(len(pred_answer_list[0])))
 
     if args.ensemble_type=="hard":
         # ver1 : hard voting
-        pred_answer = []
         output_prob = output_prob_list[0]
         
         for idx in range(len(pred_answer_list[0])):
-            c = Counter([pred_answer_list[n][idx] for n in range(0,args.ensemble_num)])
+            c = Counter([pred_answer_list[n][idx] for n in range(length)])
             pred_answer.append(c.most_common(1)[0][0])
         pred_answer = num_to_label(pred_answer)
     else:
         # ver2 : soft voting
-        output_prob = []
-        pred_answer = []
         for j in range(len(output_prob_list[0])):
             prob = []
             for k in range(30):
                 c = 0
-                for i in range(args.ensemble_num):
+                for i in range(length):
                     c += output_prob_list[i][j][k]
-                prob.append(c/args.ensemble_num)
+                prob.append(c/length)
             output_prob.append(prob)
             pred_answer.append(np.argmax(prob))
 
@@ -88,11 +97,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # model dir
-    # default : "./prediction/ensemble/{num}.csv" 경로에 num번째 앙상블할 csv파일 존재 / "./prediction/ensemble/result.csv" 경로에 최종 csv 저장
+    # default : "./prediction/ensemble" 경로의 파일에 앙상블할 csv파일 존재 / "./prediction/ensemble/result.csv" 경로에 최종 csv 저장
     parser.add_argument("--submission_dir", type=str, default=f"./prediction/ensemble/")
-    parser.add_argument("--submission_name", type=str, default="result")
-    parser.add_argument('--ensemble_num', type=int, default=3)
+    parser.add_argument("--submission_name", type=str, default="test")
     parser.add_argument("--ensemble_type", type=str, default="hard")
+    parser.add_argument('--seed', type=int, default=1004)
     args = parser.parse_args()
     print(args)
     main(args)
