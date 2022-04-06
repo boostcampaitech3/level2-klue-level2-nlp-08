@@ -46,8 +46,7 @@ def main(args):
     length = len(paths)
     for path in paths:
         test_ensemble = pd.read_csv(path)
-        temp_pred_answer, temp_output_prob = list(test_ensemble["pred_label"]), list(test_ensemble["probs"])
-        temp_pred_answer = label_to_num(temp_pred_answer)
+        temp_pred_answer, temp_output_prob = label_to_num(list(test_ensemble["pred_label"])), list(test_ensemble["probs"])
         pred_answer_list.append(temp_pred_answer)
         output_prob_list.append(temp_output_prob)
     test_id = list(range(len(pred_answer_list[0])))
