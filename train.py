@@ -106,10 +106,9 @@ def train(pargs):
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
     # load dataset
+    train_dataset = load_data("../dataset/train/split_train.csv")  # train 전체 데이터
     if pargs.method=="ensemble":
-        train_dataset = load_data("../dataset/train/new_train.csv")  # train 전체 데이터
-    else:
-        train_dataset = load_data("../dataset/train/split_train.csv") # train 데이터의 0.9
+        train_dataset = load_data("../dataset/train/new_train.csv") # train 데이터의 0.9
     dev_dataset = load_data("../dataset/train/split_dev.csv") # trian 데이터의 0.1
 
     train_label = label_to_num(train_dataset["label"].values)

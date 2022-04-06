@@ -165,8 +165,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # model dir
-    parser.add_argument("--model", type=str, default=f"1st-noamp-concat2")
-    parser.add_argument("--model_dir", type=str, default=f"./best_model/model_dir")
+    parser.add_argument("--model", type=str, default=f"model_name")
+    parser.add_argument("--model_dir", type=str, default=f"./best_model")
     parser.add_argument("--ensemble", type=str, default=True)
     parser.add_argument("--voting", type=str, default="soft")
     parser.add_argument("--ensemble_num", type=int, default=3)

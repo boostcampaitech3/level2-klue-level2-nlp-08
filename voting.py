@@ -85,7 +85,7 @@ def main(args):
     )
 
     output.to_csv(
-        f"{args.submission_dir}{args.submission_name}.csv", index=False
+        f"{args.submission_dir}/{args.submission_name}.csv", index=False
     )  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
     #### 필수!! ##############################################
     print("---- Finish! ----")
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     # model dir
     # default : "./prediction/ensemble" 경로의 파일에 앙상블할 csv파일 존재 / "./prediction/ensemble/result.csv" 경로에 최종 csv 저장
-    parser.add_argument("--submission_dir", type=str, default=f"./prediction/ensemble/")
+    parser.add_argument("--submission_dir", type=str, default=f"./prediction/ensemble")
     parser.add_argument("--submission_name", type=str, default="test")
     parser.add_argument("--ensemble_type", type=str, default="hard")
     parser.add_argument('--seed', type=int, default=1004)

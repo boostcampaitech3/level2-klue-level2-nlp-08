@@ -76,6 +76,15 @@ def search_csv(dirname):
             csv.append(file)
     return csv
 
+# finding  best model name
+def search_kfold(dirname, model_name):
+    checkpoints = []
+    filedirs = os.listdir(dirname)
+    for filedir in filedirs:
+        if model_name in filedir:
+            checkpoints.append(filedir)
+    return checkpoints
+
 # set seed
 def seed_everything(seed):
     torch.manual_seed(seed)
