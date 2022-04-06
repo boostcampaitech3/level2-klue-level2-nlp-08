@@ -106,19 +106,22 @@ def train(pargs):
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
     # load dataset
-    train_dataset = load_data("../dataset/train/new_train.csv")
-    # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
+    if pargs.method=="ensemble":
+        train_dataset = load_data("../dataset/train/new_train.csv")  # train 전체 데이터
+    else:
+        train_dataset = load_data("../dataset/train/split_train.csv") # train 데이터의 0.9
+    dev_dataset = load_data("../dataset/train/split_dev.csv") # trian 데이터의 0.1
 
     train_label = label_to_num(train_dataset["label"].values)
-    # dev_label = label_to_num(dev_dataset['label'].values)
+    dev_label = label_to_num(dev_dataset['label'].values)
 
     # tokenizing dataset
     tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-    # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+    tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
 
     # make dataset for pytorch.
     RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-    # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+    RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -143,7 +146,7 @@ def train(pargs):
             # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
             training_args = TrainingArguments(
                 output_dir=f"./results/{pargs.trial_name}",  # output directory
-                save_total_limit=3,  # number of total save model.
+                save_total_limit=pargs.checkpoint_limit,  # number of total save model.
                 save_steps=500,  # model saving step.
                 num_train_epochs=pargs.epoch,  # total number of training epochs
                 learning_rate=2e-5,  # learning_rate
@@ -216,7 +219,7 @@ def train(pargs):
             model=model,  # the instantiated 🤗 Transformers model to be trained
             args=training_args,  # training arguments, defined above
             train_dataset=RE_train_dataset,  # training dataset
-            eval_dataset=RE_train_dataset,  # evaluation dataset
+            eval_dataset=RE_dev_dataset,  # evaluation dataset
             compute_metrics=compute_metrics,  # define metrics function
         )
 
@@ -281,7 +284,7 @@ def train(pargs):
             model=model,  # the instantiated 🤗 Transformers model to be trained
             args=training_args,  # training arguments, defined above
             train_dataset=RE_train_dataset,  # training dataset
-            eval_dataset=RE_train_dataset,  # evaluation dataset
+            eval_dataset=RE_dev_dataset,  # evaluation dataset
             compute_metrics=compute_metrics,  # define metrics function
         )
 
@@ -304,7 +307,7 @@ if __name__ == "__main__":
     parser.add_argument("--epoch", type=int, default=3)
     parser.add_argument("--batch", type=int, default=32)
     parser.add_argument("--fp16", type=bool, default=False)
-    parser.add_argument("--method", type=str, default="ensemble")  # "none", "check"
+    parser.add_argument("--method", type=str, default="ensemble")  # "none", "check", "ensemble"
     parser.add_argument("--checkpoint_limit", type=int, default=3)
     parser.add_argument("--ensemble_num", type=int, default=3)
     parser.add_argument("--ensemble_test_size", type=float, default=0.1)
