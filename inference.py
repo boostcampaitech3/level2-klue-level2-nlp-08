@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   run_time = "bolim_LDAMloss_bz16_lr2e5_LRcosine"
-  if MODE == "HV":
+  if MODE == "HV" or "SV":
     parser.add_argument('--ensemble_num','-N', type=int, default=3, help='the number of ensemble models')
   # model dir
   parser.add_argument('--model_dir','-M', type=str, default="./best_model/" + run_time, help='inference model name')
