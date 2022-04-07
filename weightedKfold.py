@@ -22,10 +22,10 @@ def main(args):
     # 모델의 state_dict 가중치 평균 구하기
     # 1. 가중치 누적합
     for i in range(1,len(model)):
-        for param_tensor in model[i].state_dict():
+        for param_tensor in model[i].state_dict()[1:]:
             model[0].state_dict()[param_tensor] += model[i].state_dict()[param_tensor]
     # 2. 가중치 평균
-    for param_tensor in model[0].state_dict():
+    for param_tensor in model[0].state_dict()[1:]:
         model[0].state_dict()[param_tensor] = (model[0].state_dict()[param_tensor]/len(model)).float()
 
     weighted_model = model[0]
