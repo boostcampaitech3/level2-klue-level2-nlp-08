@@ -1,5 +1,4 @@
 import pandas as pd
-import torch
 
 import utils
 
@@ -30,7 +29,7 @@ def preprocessing_dataset(dataset, entity_tk_type):
     object_entity_type.append(obj_type)
   out_dataset = pd.DataFrame(
     {'id': dataset['id'], 'sentence': sentence, 'subject_entity': subject_entity, 'object_entity': object_entity,
-     'subject_entity_type': subject_entity_type, 'object_entity_type': object_entity_type, 'label': dataset['label'], })
+     'subject_type': subject_entity_type, 'object_type': object_entity_type, 'label': dataset['label'], })
   return out_dataset
 
 def load_data(dataset_dir, entity_tk_type='add_entity_type_punct_kr'):
