@@ -28,16 +28,10 @@ class MyRobertaForSequenceClassification(RobertaPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.roberta = AutoModel.from_pretrained("klue/roberta-large", config=config, add_pooling_layer=False)
+        # self.lstm = nn.LSTM(1024, 256, batch_first=True, bidirectional=True)
+        # self.linear = nn.Linear(256 * 2, self.num_labels)
+
         self.classification = MyRobertaClassificationHead(config)
-        # self.init_weights()
-        # self.reset_parameters()
-
-    def reset_parameters(self):
-        for m in self.classification.modules():
-            if isinstance(m, nn.Linear):
-                init.kaiming_normal_(m.weight.data)
-                m.bias.data.fill_(0)
-
 
     def forward(
             self,
@@ -50,7 +44,6 @@ class MyRobertaForSequenceClassification(RobertaPreTrainedModel):
             return_dict = None
 
     ):
-        # feature_loc = [SUB, OBJ]
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.roberta(input_ids,
@@ -58,11 +51,15 @@ class MyRobertaForSequenceClassification(RobertaPreTrainedModel):
                                token_type_ids=token_type_ids,
                                return_dict = return_dict
                                )
-
+        """
+        lstm_output, (h, c) = self.lstm(outputs[0])  ## extract the 1st token's embeddings
+        hidden = torch.cat((lstm_output[:, -1, :256], lstm_output[:, 0, 256:]), dim=-1)
+        logits = self.linear(hidden.view(-1, 256 * 2))
+        """
         sequence_output = outputs[0]
-        # 이 부분을 수정
 
         logits = self.classification(features=sequence_output, SUB=SUB, OBJ=OBJ)
+
         loss=None
 
         if labels is not None:
@@ -86,30 +83,40 @@ class MyRobertaClassificationHead(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size*2)
         self.dropout = nn.Dropout(p = 0.5)
         self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
         self.dense2 = nn.Linear(config.hidden_size*2, config.hidden_size)
+        self.dense3 = nn.Linear(config.hidden_size*3, config.hidden_size*2)
 
     def forward(self, features, SUB, OBJ, **kwargs):
         tmp = None
         for idx2 in range(len(SUB)):
+            # cls = features[idx2,0,:]
+            cls = features[idx2, 0, :]
             sub = features[idx2, SUB[idx2], :]
             obj = features[idx2, OBJ[idx2], :]
 
-            tmp1 = torch.cat([sub, obj]).unsqueeze(0)
-
+            tmp1 = torch.cat([cls, sub])
+            tmp1 = torch.cat([tmp1, obj]).unsqueeze(0)
+            """
+            if SUB[idx2] < OBJ[idx2]:
+                tmp1 = torch.cat([sub, obj]).unsqueeze(0)
+            else:
+                tmp1 = torch.cat([obj, sub]).unsqueeze(0)
+            """
             if tmp is None:
                 tmp = tmp1
             else:
                 tmp = torch.cat([tmp, tmp1], dim=0)
 
-        # x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
-
         tmp = self.dropout(tmp)
-        x = self.dense2(tmp)
+        x = self.dense3(tmp)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.dense2(x)
         x = torch.tanh(x)
         x = self.out_proj(x)
+
         return x
 
 if __name__=="__main__":
