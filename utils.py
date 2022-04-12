@@ -162,7 +162,7 @@ def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj
 
 def special_token_sentence_with_punct(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
     """
-    @*TYPE*entity@  #^TYPE^entity# -> 순서 신경 안씀
+    [SUB]*TYPE*entity[/SUB]  [OBJ]^TYPE^entity[/OBJ] -> 순서 신경 안씀
     """
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
