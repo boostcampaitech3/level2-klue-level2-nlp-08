@@ -1,7 +1,5 @@
 from konlpy.tag import Mecab
-import torch
-import numpy as np
-import random
+
 TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
 
 def add_spTok(text):
@@ -10,8 +8,10 @@ def add_spTok(text):
         text = text.replace(noun,'[NER]'+noun+'[/NER]')
     return text
 
-# *entity[TYPE]*  *entity[TYPE]*
 def add_entity_type_punct_star(text, i_start, i_end, i_type,j_start, j_end, j_type):
+    """
+    *entity[TYPE]*  *entity[TYPE]*
+    """
     if i_start < j_start:
         new_text = text[:i_start] + '*' + text[i_start:i_end + 1] + '[' + TYPE[i_type] + ']*' + text[i_end + 1:j_start] + '*' + \
                text[j_start:j_end + 1] + '[' + TYPE[j_type] + ']*'  + text[j_end + 1:]
@@ -20,8 +20,10 @@ def add_entity_type_punct_star(text, i_start, i_end, i_type,j_start, j_end, j_ty
                text[i_start:i_end + 1] + '[' + TYPE[i_type] + ']*' + text[i_end + 1:]
     return new_text
 
-# *entity[TP]TYPE[/TP]*  * entity[TP]TYPE[/TP]*
 def add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    """
+    *entity[TP]TYPE[/TP]*  * entity[TP]TYPE[/TP]*
+    """
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     
@@ -37,8 +39,10 @@ def add_entity_type_suffix_kr(text, subj_start, subj_end, subj_type, obj_start, 
                    f'*{subj_word}[TP]{TYPE[subj_type]}[/TP]*' + text[subj_end + 1:]
     return new_text
 
-# @*TYPE*entity@  #^TYPE^entity#
 def add_entity_type_punct_kr(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    """
+    @*TYPE*entity@  #^TYPE^entity#
+    """
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     
@@ -51,8 +55,10 @@ def add_entity_type_punct_kr(text, subj_start, subj_end, subj_type, obj_start, o
     
     return new_text
 
-# [subj_type]entity[/subj_type]  [obj_type]entity[/obj_type]
 def add_entity_type_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    """
+    [subj_type]entity[/subj_type]  [obj_type]entity[/obj_type]
+    """
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     
@@ -65,8 +71,10 @@ def add_entity_type_token(text, subj_start, subj_end, subj_type, obj_start, obj_
     
     return new_text
 
-# [SUBJ]entity[/SUBJ]
 def add_entity_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+  """
+  [SUBJ]entity[/SUBJ], [OBJ]entity[/OBJ]
+  """
   subj_word = text[subj_start:subj_end + 1]
   obj_word = text[obj_start:obj_end + 1]
   
@@ -76,9 +84,10 @@ def add_entity_token(text, subj_start, subj_end, subj_type, obj_start, obj_end, 
     new_text = text[:obj_start] + f'[OBJ]{obj_word}[/OBJ]' + text[obj_end+1:subj_start] + f'[SUBJ]{subj_word}[/SUBJ]' + text[subj_end+1:]
   return new_text
 
-
-# [SUBJ:type]entity[/SUBJ]
 def add_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+  """
+  [SUBJ:type]entity[/SUBJ], [OBJ:type]entity[/OBJ]
+  """
   subj_word = text[subj_start:subj_end + 1]
   obj_word = text[obj_start:obj_end + 1]
 
@@ -88,9 +97,10 @@ def add_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start,
     new_text = text[:obj_start] + f'[OBJ:{obj_type}]{obj_word}[/OBJ]' + text[obj_end+1:subj_start] + f'[SUBJ:{subj_type}]{subj_word}[/SUBJ]' + text[subj_end+1:]
   return new_text
 
-# [OBJ] entity [/OBJ]
 def special_token_sentence(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
-    concat_entity = []
+    """
+    [SUBJ]entity[/SUBJ], [OBJ]entity[/OBJ]
+    """
     sentence1: str
     sentence2: str
 
@@ -103,9 +113,10 @@ def special_token_sentence(text, subj_start, subj_end, subj_type, obj_start, obj
         new_text = sentence1[:obj_start] + '[OBJ]' + sentence1[obj_start:obj_end + 1] + '[/OBJ]' + sentence1[obj_end + 1:]
     return new_text
 
-# [OBJ;obj_type] object_entity [/OBJ;obj_type], [SUB;subj_type] subject_entity [/SUB;subj_type]
 def special_token_sentence_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
-    concat_entity = []
+    """
+    [OBJ;obj_type] object_entity [/OBJ;obj_type], [SUB;subj_type] subject_entity [/SUB;subj_type]
+    """
     sentence1: str
     sentence2: str
 
@@ -120,8 +131,10 @@ def special_token_sentence_with_type(text, subj_start, subj_end, subj_type, obj_
                                                                                                    obj_end + 1:]
     return new_text
 
-# entity --> [SUBJ:type]
-def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):    
+def swap_entity_token_with_type(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+  """
+  entity -> [SUBJ;type] or [OBJ;type]
+  """
   if subj_start < obj_start:
     new_text = text[:subj_start] + f'[SUBJ:{subj_type}]' + text[subj_end+1:obj_start] + f'[OBJ:{obj_type}]' + text[obj_end+1:]
   else:
@@ -132,6 +145,9 @@ def default_sent(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_
     return text
 
 def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    """
+    @*TYPE*subj_entity@  #^TYPE^obj_entity#
+    """
     subj_word = text[subj_start:subj_end + 1]
     obj_word = text[obj_start:obj_end + 1]
     
@@ -142,4 +158,20 @@ def add_entity_type_punct_kr_subj_obj(text, subj_start, subj_end, subj_type, obj
       new_text = text[:obj_start] + f'#^{TYPE[obj_type]}^{obj_word}#' + text[obj_end + 1:subj_start] + \
                  f'@*{TYPE[subj_type]}*{subj_word}@' + text[subj_end + 1:]
     
+    return new_text
+
+def special_token_sentence_with_punct(text, subj_start, subj_end, subj_type, obj_start, obj_end, obj_type):
+    """
+    @*TYPE*entity@  #^TYPE^entity# -> 순서 신경 안씀
+    """
+    subj_word = text[subj_start:subj_end + 1]
+    obj_word = text[obj_start:obj_end + 1]
+
+    if subj_start < obj_start:
+        new_text = text[:subj_start] + f'[SUB]*{TYPE[subj_type]}*{subj_word}[/SUB]' + text[subj_end + 1:obj_start] + \
+                   f'[OBJ]^{TYPE[obj_type]}^{obj_word}[/OBJ]' + text[obj_end + 1:]
+    else:
+        new_text = text[:obj_start] + f'[OBJ]*{TYPE[obj_type]}*{obj_word}[/OBJ]' + text[obj_end + 1:subj_start] + \
+                   f'[SUB]^{TYPE[subj_type]}^{subj_word}[/SUB]' + text[subj_end + 1:]
+
     return new_text
