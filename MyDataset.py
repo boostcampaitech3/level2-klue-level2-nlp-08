@@ -20,7 +20,8 @@ class My_RE_Dataset(torch.utils.data.Dataset):
 
     index = (ids >= 32000).nonzero(as_tuple=True)
     # print(index)
-    # item['index'] = index
+    """
+    item['index'] = index
 
     cri = index[0][0]
     other = index[0][2]
@@ -31,6 +32,10 @@ class My_RE_Dataset(torch.utils.data.Dataset):
     else:
       item['OBJ'] = int(cri)
       item['SUB'] = int(other)
+    """
+
+    item['SUB'] = int((ids==32000).nonzero(as_tuple=False))
+    item['OBJ'] = int((ids==32002).nonzero(as_tuple=False))
 
     return item
 
