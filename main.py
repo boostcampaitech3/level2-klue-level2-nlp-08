@@ -12,7 +12,7 @@ from model import *
 def main():
   torch.cuda.empty_cache()
   MODE = "default"
-  run_name = "Dongjin_subobj_withtype"
+  run_name = "Dongjin_subobj_order"
   ##############SEED SETTING###############
   SEED_NUM = 1004
   seed_everything(SEED_NUM)
@@ -20,10 +20,10 @@ def main():
   print("="*10+f"SEED_NUM : {SEED_NUM}"+"="*10)
 
   ##############LOAD DATA###############
-  entity_tk_type = 'special_token_sentence_with_type'
+  entity_tk_type = 'special_token_sentence_with_punct'
   raw_data = load_data(dataset_dir='../dataset/train/cleaned_train.csv',
                        entity_tk_type=entity_tk_type)
-  print(raw_data)
+
   train_label = label_to_num(raw_data['label'].values)
   """
   entity_tk_type
@@ -39,9 +39,9 @@ def main():
   swap_entity_token_with_type : entity --> [SUBJ:type]
   default_sent
   add_entity_type_punct_kr_subj_obj
+  special_token_sentence_with_punct
   """
   print('='*10 + f"Preprocessing type : {entity_tk_type}"+'='*10)
-
   ##############TOKENIZING DATA###############
   tokenizer_name = "klue/roberta-large"
   tokenizer, train_data = tokenizing_data(train_dataset=raw_data, tokenizer_name=tokenizer_name,
@@ -52,14 +52,13 @@ def main():
   ##############MAKE DATASET###############
   RE_train_dataset = get_dataset(train_data, train_label, change=True)
 
-  valid = True
+  valid = False
   valid_size = 0.1
   if valid:
       RE_train_dataset, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
                                                      shuffle=True, stratify=raw_data['label'])
   else:
-      _, RE_dev_dataset = train_test_split(RE_train_dataset, test_size=valid_size,
-                                                          shuffle=True, stratify=raw_data['label'])
+      RE_dev_dataset = RE_train_dataset
 
   if valid:
       wandb.init(
