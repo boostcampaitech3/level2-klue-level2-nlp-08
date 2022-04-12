@@ -17,6 +17,8 @@ from torch.utils.data import Subset, DataLoader
 from custom_trainer import CustomTrainer
 
 def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name="NoSetting", model = None):
+
+
   if model is None:
       AssertionError("MODEL을 설정해주세요!")
   # custom Trainer
@@ -31,28 +33,29 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
   output_dir = './results' # TODO : output_dir 설정
   label_smoothing_factor = 0.0 # TODO : label_smoothing factor
 
+
   training_args = TrainingArguments(
       output_dir=output_dir,  # output directory
       save_total_limit=5,  # number of total save model.
-      save_steps=300,  # model saving step.
-      num_train_epochs=5,  # total number of training epochs
+      save_steps=200,  # model saving step.
+      num_train_epochs=3,  # total number of training epochs
       learning_rate=2e-5,  # learning_rate
       per_device_train_batch_size=32,  # batch size per device during training
       per_device_eval_batch_size=32,  # batch size for evaluation
-      warmup_steps=500,  # number of warmup steps for learning rate scheduler
+      warmup_steps=200,  # number of warmup steps for learning rate scheduler
       weight_decay=0.01,  # strength of weight decay
       logging_dir='./logs',  # directory for storing logs
       logging_steps=100,  # log saving step.
-      evaluation_strategy='steps',  # evaluation strategy to adopt during training
+      evaluation_strategy='epoch',  # evaluation strategy to adopt during training
       # `no`: No evaluation during training.
       # `steps`: Evaluate every `eval_steps`.
       # `epoch`: Evaluate every end of epoch.
-      eval_steps=300,  # evaluation step.
-      load_best_model_at_end=True,
+      # eval_steps=500,  # evaluation step.
+      # load_best_model_at_end=True,
       report_to='wandb',
       fp16=True,
       fp16_opt_level="O1",
-      label_smoothing_factor=label_smoothing_factor
+      label_smoothing_factor=label_smoothing_factor,
   )
 
   if custom:
@@ -82,11 +85,14 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
           model_config = AutoConfig.from_pretrained(MODEL_NAME)
           model_config.num_labels = 30
 
-          model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-          model.resize_token_embeddings(tokenizer.vocab_size + 2)
+          model_default = False
+          model = get_model(MODEL_NAME=MODEL_NAME, tokenizer=tokenizer, model_default=model_default)
+
+          # model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+          # model.resize_token_embeddings(tokenizer.vocab_size + 2)
           # TODO : MODE가 "add_sptok"여야지만 num_added_sptoks가 설정됨
-          print(model.config)
-          model.parameters
+          # print(model.config)
+          # model.parameters
           model.to(device)
 
           train_data = Subset(RE_train_dataset, train_idx)
@@ -110,7 +116,7 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
 
 def main():
   MODE = "default"
-  run_name = "Dongjin_concat_subobjwithtokentype"
+  run_name = "Dongjin_LSTM_bestmodel"
 
   train(MODE=MODE, run_name=run_name)
 

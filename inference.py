@@ -1,5 +1,7 @@
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from torch.utils.data import DataLoader
+
+from MyDataset import RE_Dataset, My_RE_Dataset
 from load_data import *
 import pandas as pd
 import torch
@@ -11,8 +13,9 @@ import argparse
 from tqdm import tqdm
 from collections import Counter
 
+from metric import label_to_num
 from model import MyRobertaForSequenceClassification, get_model
-from tokenizing import tokenized_dataset
+from tokenizing import tokenized_dataset, get_tokenizer
 
 
 def inference(model, tokenized_sent, device):
@@ -27,7 +30,6 @@ def inference(model, tokenized_sent, device):
   output_prob = []
   for i, data in enumerate(tqdm(dataloader)):
     with torch.no_grad():
-      print(data['OBJ'])
       outputs = model(input_ids = data['input_ids'].to(device), token_type_ids=data['token_type_ids'].to(device),
                       OBJ = data['OBJ'].to(device),
                       SUB = data['SUB'].to(device))
@@ -35,6 +37,14 @@ def inference(model, tokenized_sent, device):
     prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
     logits = logits.detach().cpu().numpy()
     result = np.argmax(logits, axis=-1)
+    """
+    for idx in range(len(prob)):
+      if prob[idx][result[idx]] < 0.7 and result[idx]==0:
+        tmp_save = prob[idx][result[idx]]
+        prob[idx][result[idx]] = 0
+        result[idx] = np.argmax(prob[idx])
+        prob[idx][result[idx]] = tmp_save
+    """
 
     output_pred.append(result)
     output_prob.append(prob)
@@ -71,34 +81,26 @@ def main(args, MODE:str = "default"):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
   Tokenizer_NAME = "klue/roberta-large"
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
-  tokenizer.add_special_tokens({'additional_special_tokens': ['[SUB;ORG]', '[/SUB;ORG]',
-                                                              '[SUB;PER]', '[/SUB;PER]',
-                                                              '[OBJ;PER]', '[/OBJ;PER]',
-                                                              '[OBJ;LOC]', '[/OBJ;LOC]',
-                                                              '[OBJ;DAT]', '[/OBJ;ORG]',
-                                                              '[OBJ;ORG]', '[/OBJ;ORG]',
-                                                              '[OBJ;POH]', '[/OBJ;NOH]',
-                                                              '[OBJ;NOH]', '[/OBJ;NOH]',
-                                                              ]})
+  tokenizer = get_tokenizer(tokenizer_name = Tokenizer_NAME, MODE="token")
 
   ## load test dataset
-  test_dataset_dir = "../../dataset/test/test_data.csv"
+  test_dataset_dir = "../dataset/test/test_data.csv"
   # TODO : ../../으로 되어 있는데 test_data.csv 위치 확인!
   # csv file name
-  file_name = 'submission_test.csv'
+  file_name = 'submission_SUBOBJCLS.csv'
   # sentence preprocessing type
-  entity_tk_type = 'add_entity_type_punct_star'
+  entity_tk_type = 'special_token_sentence_with_punct'
 
   test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer, entity_tk_type)
-  Re_test_dataset = RE_Dataset(test_dataset, test_label)
+
+  Re_test_dataset = My_RE_Dataset(test_dataset, test_label)
 
   ## load my model
   if MODE=="default":
     ## load my model
     MODEL_NAME = args.model_dir # model dir.
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-    model.resize_token_embeddings(len(tokenizer))
+    # model.resize_token_embeddings(len(tokenizer))
 
     model.parameters
     model.to(device)
@@ -108,8 +110,7 @@ def main(args, MODE:str = "default"):
     pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
     pred_answer = num_to_label(pred_answer) # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
-
-  elif MODE=="my":
+  elif MODE=="DJ":
     model = torch.load('./best_model/model.pt')
     pred_answer, output_prob = inference(model, Re_test_dataset, device)  # model에서 class 추론
     pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
@@ -122,21 +123,39 @@ def main(args, MODE:str = "default"):
     for i in range(1, args.ensemble_num + 1):
       MODEL_NAME = args.model_dir + '_' + str(i)  # model dir.
       model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-      model.parameters
+
       model.to(device)
       temp_pred_answer, temp_output_prob = inference(model, Re_test_dataset, device)  # model에서 class 추론
       pred_answer_list.append(temp_pred_answer)
       output_prob_list.append(temp_output_prob)
+
+    output_prob = []
+    pred_answer = []
+    for j in range(len(output_prob_list[0])):
+      prob = []
+      for k in range(30):
+        c = 0
+        for i in range(args.ensemble_num):
+          c += output_prob_list[i][j][k]
+        prob.append(c / args.ensemble_num)
+      output_prob.append(prob)
+      pred_answer.append(np.argmax(prob))
+
+    pred_answer = num_to_label(pred_answer)
+    """
     output_prob = output_prob_list[0]
     pred_answer = []
     for idx in range(len(pred_answer_list[0])):
       c = Counter([pred_answer_list[n][idx] for n in range(0, args.ensemble_num)])
       pred_answer.append(c.most_common(1)[0][0])
     pred_answer = num_to_label(pred_answer)
+    """
 
     ## make csv file with predicted answer
     #########################################################
     # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
+
+
   output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
   output.to_csv('./prediction/'+file_name, index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
@@ -147,7 +166,7 @@ if __name__ == '__main__':
   MODE = "my"
 
   parser = argparse.ArgumentParser()
-  run_time = "Dongjin_concat_subobj_kaiming"
+  run_time = "Dongjin_LSTM"
 
   if MODE == "HV":
     parser.add_argument('--ensemble_num','-N', type=int, default=3, help='the number of ensemble models')
