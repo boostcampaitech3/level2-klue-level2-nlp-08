@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from torch.autograd import Variable
 
 class LDAMLoss(nn.Module):
     def __init__(self, cls_num_list, max_m=0.5, weight=None, s=30):
@@ -32,6 +33,37 @@ class LDAMLoss(nn.Module):
         return F.cross_entropy(
             self.s * output.to("cuda"), target.to("cuda"), weight=self.weight.to("cuda")
         )
+# https://github.com/clcarwin/focal_loss_pytorch
+class other_FocalLoss(nn.Module):
+    def __init__(self, gamma=5, alpha=None, size_average=True):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        if isinstance(alpha,(float,int)): self.alpha = torch.Tensor([alpha,1-alpha])
+        if isinstance(alpha,list): self.alpha = torch.Tensor(alpha)
+        self.size_average = size_average
+
+    def forward(self, input, target):
+        if input.dim()>2:
+            input = input.view(input.size(0),input.size(1),-1)  # N,C,H,W => N,C,H*W
+            input = input.transpose(1,2)    # N,C,H*W => N,H*W,C
+            input = input.contiguous().view(-1,input.size(2))   # N,H*W,C => N*H*W,C
+        target = target.view(-1,1)
+
+        logpt = F.log_softmax(input, dim = -1)
+        logpt = logpt.gather(1,target)
+        logpt = logpt.view(-1)
+        pt = Variable(logpt.data.exp())
+
+        if self.alpha is not None:
+            if self.alpha.type()!=input.data.type():
+                self.alpha = self.alpha.type_as(input.data)
+            at = self.alpha.gather(0,target.data.view(-1))
+            logpt = logpt * Variable(at)
+
+        loss = -1 * (1-pt)**self.gamma * logpt
+        if self.size_average: return loss.mean()
+        else: return loss.sum()
 
 class FocalLoss(nn.Module):
     def __init__(self, weight=None,
@@ -79,7 +111,7 @@ class F1Loss(nn.Module):
 
 """https://kyunghyunlim.github.io/nlp/ml_ai/2021/10/01/hf_culoss.html"""
 class CustomTrainer(Trainer):
-    def __init__(self, loss_name, *args, **kwargs):
+    def __init__(self, loss_name=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_name = loss_name
         self.n_per_labels = self.train_dataset.get_n_per_labels()
@@ -87,14 +119,15 @@ class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         """ Default Loss : CrossEntropyLoss (defined at RobertaForMaskedLM) """
         labels = inputs.pop('labels')
+
         outputs = model(**inputs)
-        custom_loss = None
-        
-        if self.loss_name == 'focal':
+        # base:CrossEntropy
+        loss_name = ''
+        if loss_name == 'focal':
             custom_loss = FocalLoss()
-        elif self.loss_name == 'f1':
+        elif loss_name == 'f1':
             custom_loss = F1Loss()
-        elif self.loss_name == 'LDAMLoss':
+        elif loss_name == 'LDAMLoss':
             betas = [0, 0.99]
             beta_idx = self.state.epoch >= 2
             n_per_labels = self.n_per_labels
@@ -109,17 +142,23 @@ class CustomTrainer(Trainer):
             )
             if torch.cuda.is_available():
                 custom_loss.cuda()
-        elif self.loss_name == 'LabelSmoothing':
+        elif loss_name == 'other_focal':
+            custom_loss = other_FocalLoss()
+        elif loss_name == 'LabelSmoothing':
             loss = self.label_smoother(outputs, labels)
         elif self.loss_name == 'CrossEntropy':
             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
-        if custom_loss is not None:
-            loss = custom_loss(outputs['logits'], labels)
+        else:
+            custom_loss = torch.nn.CrossEntropyLoss()
+            loss = custom_loss(outputs, labels)
+        
+        if custom_loss is not None and (not loss):
+            loss = custom_loss(outputs[0], labels)
         
         return (loss, outputs) if return_outputs else loss
 
     """https://github.com/l-yohai/korean-entity-relation-extraction/blob/73688dee55ae93094c21142299586f04efd9a8ee/trainer/trainer.py#L41"""
+
     def evaluation_loop(self, *args, **kwargs):
         output = super().evaluation_loop(*args, **kwargs)
 
