@@ -73,7 +73,7 @@ def main(args, MODE:str = "default"):
   test_dataset_dir = "../../dataset/test/test_data.csv"
 
   # csv file name
-  file_name = 'submission_0405_2.csv'
+  file_name = 'submission_0407_2.csv'
   # sentence preprocessing type
   entity_tk_type = 'add_entity_type_punct_star'
 
@@ -146,10 +146,10 @@ def main(args, MODE:str = "default"):
   print('---- Finish! ----')
 
 if __name__ == '__main__':
-  MODE = "HV"
+  MODE = "SV"
 
   parser = argparse.ArgumentParser()
-  run_time = "bolim_LDAMloss_bz16_lr2e5_LRcosine"
+  run_time = "bolim_cosine_multi+_100W_3ep_finalData"
   if MODE == "HV" or "SV":
     parser.add_argument('--ensemble_num','-N', type=int, default=3, help='the number of ensemble models')
   # model dir

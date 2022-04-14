@@ -29,7 +29,7 @@ def train(MODE="default", run_name="NoSetting"):
   valid_size = 0.1
 
   # custom Trainer
-  custom = True
+  custom = False
 
   # model modification
   model_default = True
@@ -43,7 +43,7 @@ def train(MODE="default", run_name="NoSetting"):
       num_added_sptoks = tokenizer.add_special_tokens({"additional_special_tokens": ['[TP]', '[/TP]']})
   # TODO : [TP], [/TP] special token 추가할 경우
 
-  DATA_PATH = '../../dataset/train/cleaned_train.csv'
+  DATA_PATH = '../../dataset/train/cleaned_final_train.csv'
   # TODO : train.csv 파일 경로
 
   # load dataset
@@ -92,10 +92,10 @@ def train(MODE="default", run_name="NoSetting"):
       save_steps=1000,  # model saving step.
       num_train_epochs=4,  # total number of training epochs
       learning_rate=2e-5,  # learning_rate
-      per_device_train_batch_size=16,  # batch size per device during training
-      per_device_eval_batch_size=16,  # batch size for evaluation
+      per_device_train_batch_size=32,  # batch size per device during training
+      per_device_eval_batch_size=32,  # batch size for evaluation
       lr_scheduler_type='cosine', #SchedulerType LINEAR, COSINE, POLYNOMIAL...,
-      warmup_steps=300,  # number of warmup steps for learning rate scheduler
+      warmup_steps=100,  # number of warmup steps for learning rate scheduler
       weight_decay=0.01,  # strength of weight decay
       logging_dir='./logs',  # directory for storing logs
       logging_steps=100,  # log saving step.
@@ -107,8 +107,8 @@ def train(MODE="default", run_name="NoSetting"):
       metric_for_best_model="micro f1 score",
       load_best_model_at_end=True,
       report_to="wandb",
-      fp16=True,
-      fp16_opt_level="O1",
+      # fp16=True,
+      # fp16_opt_level="O1",
       label_smoothing_factor=label_smoothing_factor
   )
 
@@ -180,7 +180,7 @@ def train(MODE="default", run_name="NoSetting"):
 
 def main():
   MODE = "default"
-  run_name = "bolim_LDAMloss_ep4"
+  run_name = "bolim_cosine_multi+_100W_3ep_finalData"
 
   train(MODE=MODE, run_name=run_name)
 
