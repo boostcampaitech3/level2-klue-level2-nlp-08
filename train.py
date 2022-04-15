@@ -25,7 +25,7 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
   custom = False
 
   # hard-voting ensemble
-  ensemble = False
+  ensemble = True
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   model.to(device)
@@ -50,12 +50,13 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
       # `no`: No evaluation during training.
       # `steps`: Evaluate every `eval_steps`.
       # `epoch`: Evaluate every end of epoch.
-      # eval_steps=500,  # evaluation step.
-      # load_best_model_at_end=True,
-      report_to='wandb',
-      fp16=True,
-      fp16_opt_level="O1",
-      label_smoothing_factor=label_smoothing_factor,
+      eval_steps=500,  # evaluation step.
+      metric_for_best_model="micro f1 score",
+      load_best_model_at_end=True,
+      report_to="wandb",
+      # fp16=True,
+      # fp16_opt_level="O1",
+      label_smoothing_factor=label_smoothing_factor
   )
 
   if custom:
@@ -76,9 +77,9 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
       )
 
   # Hard Voting Ensemble
-
+  torch.cuda.empty_cache()
   if ensemble:
-      train_val_split = StratifiedShuffleSplit(n_splits=3, test_size=0.1, random_state=1004)
+      train_val_split = StratifiedKFold(n_splits=3, shuffle=True, random_state=1004)
       idx = 0
       for train_idx, valid_idx in train_val_split.split(RE_train_dataset, RE_train_dataset.labels):
           idx += 1
@@ -88,23 +89,28 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
           model_default = False
           model = get_model(MODEL_NAME=MODEL_NAME, tokenizer=tokenizer, model_default=model_default)
 
-          # model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-          # model.resize_token_embeddings(tokenizer.vocab_size + 2)
           # TODO : MODE가 "add_sptok"여야지만 num_added_sptoks가 설정됨
-          # print(model.config)
-          # model.parameters
           model.to(device)
+          train_subset = Subset(RE_train_dataset, train_idx)
+          valid_subset = Subset(RE_train_dataset, valid_idx)
 
-          train_data = Subset(RE_train_dataset, train_idx)
-          valid_data = Subset(RE_train_dataset, valid_idx)
-
-          trainer = Trainer(
-              model=model,  # the instantiated 🤗 Transformers model to be trained
-              args=training_args,  # training arguments, defined above
-              train_dataset=train_data,
-              eval_dataset=valid_data,
-              compute_metrics=compute_metrics  # define metrics function
-          )
+          if custom: # LDAM Loss 코드
+              trainer = CustomTrainer(
+                  loss_name='LDAMLoss',
+                  model=model,  # the instantiated 🤗 Transformers model to be trained
+                  args=training_args,  # training arguments, defined above
+                  train_dataset=train_subset.dataset,  # training dataset
+                  eval_dataset=valid_subset.dataset,  # evaluation dataset
+                  compute_metrics=compute_metrics  # define metrics function
+              )
+          else:
+              trainer = Trainer(
+                  model=model,  # the instantiated 🤗 Transformers model to be trained
+                  args=training_args,  # training arguments, defined above
+                  train_dataset=train_subset,  # training dataset
+                  eval_dataset=valid_subset,  # evaluation dataset
+                  compute_metrics=compute_metrics  # define metrics function
+              )
           # train model
           trainer.train()
           model.save_pretrained('./best_model/' + run_name + '_' + str(idx))
@@ -116,7 +122,7 @@ def train(RE_train_dataset, RE_dev_dataset, tokenizer, MODE="default", run_name=
 
 def main():
   MODE = "default"
-  run_name = "Dongjin_LSTM_bestmodel"
+  run_name = "runname setting"
 
   train(MODE=MODE, run_name=run_name)
 

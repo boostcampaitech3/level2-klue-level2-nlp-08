@@ -6,12 +6,12 @@ from load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
-
 import pickle as pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
 from collections import Counter
+from utils import *
 
 from metric import label_to_num
 from model import MyRobertaForSequenceClassification, get_model
@@ -85,9 +85,10 @@ def main(args, MODE:str = "default"):
 
   ## load test dataset
   test_dataset_dir = "../dataset/test/test_data.csv"
-  # TODO : ../../으로 되어 있는데 test_data.csv 위치 확인!
+
   # csv file name
-  file_name = 'submission_SUBOBJCLS.csv'
+  file_name = 'submission.csv'
+
   # sentence preprocessing type
   entity_tk_type = 'special_token_sentence_with_punct'
 
@@ -108,7 +109,6 @@ def main(args, MODE:str = "default"):
 
     ## predict answer
     pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
-    pred_answer = num_to_label(pred_answer) # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
   elif MODE=="DJ":
     model = torch.load('./best_model/model.pt')
@@ -142,15 +142,32 @@ def main(args, MODE:str = "default"):
       pred_answer.append(np.argmax(prob))
 
     pred_answer = num_to_label(pred_answer)
-    """
-    output_prob = output_prob_list[0]
-    pred_answer = []
-    for idx in range(len(pred_answer_list[0])):
-      c = Counter([pred_answer_list[n][idx] for n in range(0, args.ensemble_num)])
-      pred_answer.append(c.most_common(1)[0][0])
-    pred_answer = num_to_label(pred_answer)
-    """
+  # soft voting
+  elif MODE == 'SV':
+    pred_answer_list = []
+    output_prob_list = []
 
+    for i in range(1, args.ensemble_num + 1):
+      MODEL_NAME = args.model_dir + '_' + str(i)  # model dir.
+      model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+      model.parameters
+      model.to(device)
+      temp_pred_answer, temp_output_prob = inference(model, Re_test_dataset, device)  # model에서 class 추론
+      pred_answer_list.append(temp_pred_answer)
+      output_prob_list.append(temp_output_prob)
+    output_prob = []
+    pred_answer = []
+    for j in range(len(output_prob_list[0])):
+      prob = []
+      for k in range(30):
+        c = 0
+        for i in range(args.ensemble_num):
+          c += output_prob_list[i][j][k]
+        prob.append(c / args.ensemble_num)
+      output_prob.append(prob)
+      pred_answer.append(np.argmax(prob))
+
+  pred_answer = num_to_label(pred_answer)
     ## make csv file with predicted answer
     #########################################################
     # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
@@ -158,17 +175,16 @@ def main(args, MODE:str = "default"):
 
   output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
-  output.to_csv('./prediction/'+file_name, index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+  output.to_csv('../prediction/'+file_name, index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
 
 if __name__ == '__main__':
-  MODE = "my"
+  MODE = "SV"
 
   parser = argparse.ArgumentParser()
-  run_time = "Dongjin_LSTM"
-
-  if MODE == "HV":
+  run_time = "runname setting"
+  if MODE == "HV" or "SV":
     parser.add_argument('--ensemble_num','-N', type=int, default=3, help='the number of ensemble models')
   # model dir
   parser.add_argument('--model_dir','-M', type=str, default="./best_model/" + run_time, help='inference model name')
@@ -176,4 +192,3 @@ if __name__ == '__main__':
   args = parser.parse_args()
   print(args)
   main(args, MODE)
-  

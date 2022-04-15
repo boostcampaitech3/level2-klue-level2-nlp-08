@@ -49,10 +49,9 @@ def tokenized_dataset(dataset, tokenizer):
     """
     for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
         temp = e01 + '와 ' + e02 +'의 관계를 구하시오.'
-        #  = f'*{e01}[{e01_type}]* 와  + *{e02}[{e02_type}]* 의 관계를 구하시오.'
-        # temp2 = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
-        # temp = ''
-        # temp = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
+        temp1 = f'*{e01}[{e01_type}]* 와  + *{e02}[{e02_type}]* 의 관계를 구하시오.'
+        temp2 = f'이 문장에서 *{e01}*과 ^{e02}^은 어떤 관계일까?'  # multi 방식 사용
+        temp3 = f"이 문장에서 [{e02}]은 [{TYPE[e01_type]}]인 [{e01}]의 [{TYPE[e02_type]}]이다."
         concat_entity.append(temp)
     """
 

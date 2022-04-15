@@ -1,4 +1,5 @@
 import torch
+from collections import Counter
 
 def get_dataset(train_data, train_label, change = False):
   if change:
@@ -47,12 +48,19 @@ class RE_Dataset(torch.utils.data.Dataset):
   def __init__(self, pair_dataset, labels):
     self.pair_dataset = pair_dataset
     self.labels = labels
+    self.label_counter = self._get_label_counter()
 
   def __getitem__(self, idx):
     item = {key: val[idx].clone().detach() for key, val in self.pair_dataset.items()}
     item['labels'] = torch.tensor(self.labels[idx])
-
     return item
 
   def __len__(self):
     return len(self.labels)
+
+  def get_n_per_labels(self):
+      return [self.label_counter[i] for i in range(30)]
+
+  def _get_label_counter(self):
+      label_counter = Counter(self.labels)
+      return label_counter

@@ -4,6 +4,7 @@ from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTok
     RobertaPreTrainedModel
 import torch
 import torch.nn.init as init
+import torch.nn.functional as F
 import numpy as np
 from time import sleep
 
@@ -47,10 +48,10 @@ class MyRobertaForSequenceClassification(RobertaPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.roberta(input_ids,
-                               attention_mask=attention_mask,
-                               token_type_ids=token_type_ids,
-                               return_dict = return_dict
-                               )
+                                attention_mask=attention_mask,
+                                token_type_ids=token_type_ids,
+                                return_dict = return_dict
+                            )
         """
         lstm_output, (h, c) = self.lstm(outputs[0])  ## extract the 1st token's embeddings
         hidden = torch.cat((lstm_output[:, -1, :256], lstm_output[:, 0, 256:]), dim=-1)

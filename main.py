@@ -12,7 +12,7 @@ from model import *
 def main():
   torch.cuda.empty_cache()
   MODE = "default"
-  run_name = "Dongjin_subobj_order"
+  run_name = "runname setting"
   ##############SEED SETTING###############
   SEED_NUM = 1004
   seed_everything(SEED_NUM)
@@ -75,7 +75,7 @@ def main():
 
   ##############GET MODEL###############
   MODEL_NAME = "klue/roberta-large"
-  model_default = False
+  model_default = True
   model = get_model(MODEL_NAME=MODEL_NAME, tokenizer=tokenizer, model_default=model_default)
 
   print("="*10 + f'MODEL_NAME : {MODEL_NAME}' + '='*10)
