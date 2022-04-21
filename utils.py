@@ -1,4 +1,6 @@
 from konlpy.tag import Mecab
+import os, torch, random
+import numpy as np
 
 TYPE = {'ORG':'단체', 'PER':'사람', 'DAT':'날짜', 'LOC':'위치', 'POH':'기타', 'NOH':'수량'}
 
@@ -175,3 +177,41 @@ def special_token_sentence_with_punct(text, subj_start, subj_end, subj_type, obj
                    f'[SUB]^{TYPE[subj_type]}^{subj_word}[/SUB]' + text[subj_end + 1:]
 
     return new_text
+
+# finding csv name
+def search_csv(dirname):
+    csv = []
+    filedirs = os.listdir(dirname)
+    for file in filedirs:
+        if ".csv" in file:
+            csv.append(file)
+    return csv
+
+# finding  best model name
+def search_kfold(dirname, model_name):
+    checkpoints = []
+    filedirs = os.listdir(dirname)
+    for filedir in filedirs:
+        if model_name in filedir:
+            checkpoints.append(filedir)
+    return checkpoints
+
+# set seed
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+
+# finding checkpoints
+
+def search_checkpoint(dirname):
+    checkpoints = []
+    filedirs = os.listdir(dirname)
+    for filedir in filedirs:
+        if "checkpoint-" in filedir:
+            checkpoints.append(filedir)
+    return checkpoints
