@@ -24,7 +24,7 @@ import argparse
 from utils import *
 
 path="./results/"
-checkpoints = search(path)
+checkpoints = search_checkpoint(path)
 checkpoints = checkpoints[0] + checkpoints
 
 model = []
