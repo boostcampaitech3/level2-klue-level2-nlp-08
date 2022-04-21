@@ -1,9 +1,9 @@
 # Naver Boostcamp AI Tech 3기 KLUE Relation Extraction Competition
 ## Team MIML
 
-## [Solution Presentation](https://github.com/boostcampaitech3/level2-klue-level2-nlp-08/blob/chi0_merge/assets/MIML%20Solution.pdf)
+## [Solution Presentation](https://github.com/boostcampaitech3/level2-klue-level2-nlp-08/blob/main/assets/MIML%20Solution.pdf)
 
-## [Wrapup Report](https://github.com/boostcampaitech3/level2-klue-level2-nlp-08/blob/chi0_merge/assets/MIML%20Wrapup%20Report.pdf)
+## [Wrapup Report](https://github.com/boostcampaitech3/level2-klue-level2-nlp-08/blob/main/assets/MIML%20Wrapup%20Report.pdf)
 
 ## Members
 
